@@ -28,7 +28,20 @@ def qgis_lazy_import(imports_dict):
 
 
 @dataclass
+class QgisLayerVisualization:
+    opacity: float = 1.
+    colormap: str = "bw"
+
+
+    def set_layer_vis(layer):
+        # TODO: either two classes, BW and pseudocolor, or if-clause
+        set_bw_colorbar_limits()
+
+
+@dataclass
 class QgisDataset:
+    # TODO: move non-dataset related params to layer class or visualization class
+    # TODO: or rather name Layer
     file: str
     crs: str | int|  None = None
     opacity: float = 1.
@@ -41,7 +54,7 @@ class QgisDataset:
     name: str | None = None     # TODO: implement logic
     # TODO collapse in tree
 
-    overwrite_existing: bool = False    # if layer is added, check whether
+    overwrite_existing: bool = False
 
 
     def save(self, filepath: str):
@@ -60,11 +73,23 @@ class QgisDataset:
     def get_path(self):
         """Get the dataset's path as in the layer tree."""
         if self.group is None:
-            return self.get_layer_name()
+            return [self.get_layer_name()]
         elif isinstance(self.group, str):
             return [self.group, self.get_layer_name()]
         else:
             return [*self.group, self.get_layer_name()]
+
+    # TODO: import; kill or implement
+    # def link(layer: QgsMapLayer):
+    #     """Meant to embed an actual qgis layer object -> can be used for qgis raster calculations"""
+    #     pass
+
+
+@dataclass
+class QgisLayer:
+    def get_min_max(self):
+        # TODO
+        pass
 
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})
@@ -131,6 +156,8 @@ def remove_layer_by_path(project, path):
     """
     Remove a layer by full group path, e.g. ["Group1", "SubGroup", "LayerName"]
     """
+    # TODO: what happens with duplicate names?
+
     if not path:
         return False
 
@@ -159,8 +186,6 @@ def remove_layer_by_path(project, path):
 
     print(f"Layer '{layer_name}' not found in {group_path_str}")
     return False
-
-
 
 
 @qgis_lazy_import({
@@ -211,6 +236,12 @@ def create_qgis_project(
         # TODO: computation mode estimate/exact
         if vmin is None:
             stats = rlayer.dataProvider().bandStatistics(band_idx, QgsRasterBandStats.Min)
+
+            # TODO: test
+            stats_exact = rlayer.dataProvider().bandStatistics(band_idx, QgsRasterBandStats.Min, layer.extent(), 0)     # sample size 0 -> exact
+
+            assert stats.minimumValue == stats_exact.minimumValue, "Not equal, use exact one and introduce param to function"
+
             vmin = stats.minimumValue
         if vmax is None:
             stats = rlayer.dataProvider().bandStatistics(band_idx, QgsRasterBandStats.Max)
@@ -249,6 +280,15 @@ def create_qgis_project(
         renderer = QgsSingleBandPseudoColorRenderer(rlayer.dataProvider(), 1, raster_shader)
         renderer.setClassificationMin(vmin)
         renderer.setClassificationMax(vmax)
+
+        # TODO: test
+        # Configure the min/max origin
+        # origin = QgsRasterMinMaxOrigin()
+        # origin.setLimits(QgsRasterMinMaxOrigin.MinMax)              # use min/max, not user-defined
+        # origin.setExtent(QgsRasterMinMaxOrigin.WholeRaster)         # use whole raster extent
+        # origin.setAccuracy(QgsRasterMinMaxOrigin.Exact)             # <-- forces actual stats calculation
+        # renderer.setMinMaxOrigin(origin)
+
         rlayer.setRenderer(renderer)
         rlayer.triggerRepaint()
 
@@ -293,7 +333,6 @@ def create_qgis_project(
 
     def set_bw_colorbar_limits(rlayer, vmin=None, vmax=None):
         vmin, vmax = get_layer_min_max(rlayer, vmin, vmax)
-
 
 
         """
@@ -347,6 +386,7 @@ def create_qgis_project(
             project_crs = f"EPSG:{project_crs}"
         project.setCrs(QgsCoordinateReferenceSystem(project_crs))
 
+    layer = None
     for ds in datasets:
         if isinstance(ds, str):
             ds = QgisDataset(ds)
@@ -405,10 +445,11 @@ def create_qgis_project(
                 layer_node.setItemVisibilityChecked(False)
 
 
-
-    # zoom on last added layer
-    layer_extent = layer.extent()
-    canvas.setExtent(layer_extent)
+    # zoom on last added layer (if layers were added)
+    # TODO: replace by `get_top_layer` or smth
+    if layer is not None:
+        layer_extent = layer.extent()
+        canvas.setExtent(layer_extent)
 
     # Save the project
     project.write(project_outfile)
@@ -445,6 +486,7 @@ def export_dataset_objects(objects: list[QgisDataset | str]):
     # TemporaryDirectory automatically deletes tmpdir after block
 
 
+# TODO: move to `standalone` module
 def create_qgis_project_env(datasets, outfile):
     """
     Create a qgis project and populate with files.
