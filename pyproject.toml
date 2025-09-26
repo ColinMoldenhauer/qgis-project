@@ -7,7 +7,7 @@ name = "qgis-project"
 dynamic = ["version"]
 description = ''
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = "MIT"
 keywords = []
 authors = [
@@ -24,7 +24,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "loguru",
+]
 
 [project.urls]
 Documentation = "https://github.com/Colin Moldenhauer/qgis-project#readme"
