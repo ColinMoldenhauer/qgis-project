@@ -66,7 +66,7 @@ class QgisDataset:
         else:
             return [*self.group, self.get_layer_name()]
 
-
+# Transferred
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})
 def add_or_get_group(project, group_name: str | list[str]):
     root = project.layerTreeRoot()
@@ -93,7 +93,7 @@ def add_or_get_group(project, group_name: str | list[str]):
 
     return group
 
-
+# Transferred
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup", "QgsLayerTreeLayer"]})
 def layer_exists_by_path(project, path: list[str]) -> bool:
     """
@@ -125,7 +125,7 @@ def layer_exists_by_path(project, path: list[str]) -> bool:
 
     return False
 
-
+# Transferred
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup", "QgsLayerTreeLayer"]})
 def remove_layer_by_path(project, path):
     """
@@ -207,6 +207,7 @@ def create_qgis_project(
     """
 
     def get_layer_min_max(rlayer, vmin, vmax, band_idx=1):
+        # transferred
         # compute auto-limits if not provided
         # TODO: computation mode estimate/exact
         if vmin is None:
@@ -292,6 +293,7 @@ def create_qgis_project(
 
 
     def set_bw_colorbar_limits(rlayer, vmin=None, vmax=None):
+        # transferred
         vmin, vmax = get_layer_min_max(rlayer, vmin, vmax)
 
 
