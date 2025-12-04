@@ -5,6 +5,7 @@ import importlib
 import os
 import pickle
 import tempfile
+import secrets
 
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -477,8 +478,8 @@ def export_dataset_objects(objects: list[QgisDataset | str]):
         for i, obj in enumerate(objects):
             # make Dataset if str
             if isinstance(obj, str): obj = QgisDataset(obj)
-
-            file_path = tmp_path / (os.path.splitext(os.path.basename(obj.file))[0]+".pkl")
+            rndid = secrets.token_hex(4)      # 8 hex chars
+            file_path = tmp_path / (os.path.splitext(os.path.basename(obj.file))[0]+f"{rndid}.pkl")
             obj.save(file_path)
             file_paths.append(file_path)
 
