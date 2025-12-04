@@ -487,7 +487,7 @@ def export_dataset_objects(objects: list[QgisDataset | str]):
 
 
 # TODO: move to `standalone` module
-def create_qgis_project_env(datasets, outfile):
+def create_qgis_project_env(datasets, outfile, overwrite_existing=False,):
     """
     Create a qgis project and populate with files.
 
@@ -496,9 +496,12 @@ def create_qgis_project_env(datasets, outfile):
     """
     import subprocess
 
+    other_args = []
+    if overwrite_existing: other_args.extend(["--overwrite"])
+
     with export_dataset_objects(datasets) as picke_files:
         result = subprocess.run([
-            "conda", "run", "-n", "qgis-env", "python", os.path.abspath(__file__), *picke_files, outfile
+            "conda", "run", "-n", "qgis-env", "python", os.path.abspath(__file__), *picke_files, outfile, *other_args,
         ], capture_output=True, text=True)
 
     if result.returncode == 0:
@@ -520,6 +523,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("files", nargs="+", help="All files (or pickled QgisDataset objects containing a file) which should be added to the project.")
     parser.add_argument("project_file", help="Filename of QGIS project to create")
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
     # allow mixture of pickled dataset objects or pure files
@@ -527,4 +531,4 @@ if __name__ == "__main__":
         (QgisDataset.load(file) if file.endswith("pkl") else file) for file in args.files
     ]
 
-    create_qgis_project(args.files, args.project_file)
+    create_qgis_project(args.files, args.project_file, overwrite_existing=args.overwrite)
