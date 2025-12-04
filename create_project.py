@@ -95,6 +95,7 @@ class QgisLayer:
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})
 def add_or_get_group(project, group_name: str | list[str]):
+    print(f"\nAdding or getting group {group_name}")
     root = project.layerTreeRoot()
     group = root
 
@@ -109,13 +110,15 @@ def add_or_get_group(project, group_name: str | list[str]):
              if isinstance(child, QgsLayerTreeGroup) and child.name() == name),
             None
         )
+        group_path = '/'.join(['/ROOT', *path, name])
         if found is None:
-            group_path = '/'.join(['/ROOT', *path, name])
             print(f"Added group   {group_path}")
             group = group.addGroup(name)
         else:
+            print(f"Found group   {group_path}")
             group = found
-            path.append(name)
+
+        path.append(name)
 
     return group
 
