@@ -28,6 +28,33 @@ def qgis_lazy_import(imports_dict):
     return decorator
 
 
+def headless_qt(func):
+    """
+    Decorator to ensure Qt/QGIS runs in headless (offscreen) mode.
+    E.g. when calling this script via SSH.
+
+    Must be applied to functions that are guaranteed not to require a GUI.
+    This decorator MUST run before any Qt / QGIS imports occur.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # If Qt is already initialized, it's too late to change platform
+        if "QT_QPA_PLATFORM" in os.environ:
+            if os.environ["QT_QPA_PLATFORM"] != "offscreen":
+                raise RuntimeError(
+                    "Qt platform already set to "
+                    f"{os.environ['QT_QPA_PLATFORM']}, "
+                    "cannot enforce headless mode."
+                )
+        else:
+            os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 @dataclass
 class QgisLayerVisualization:
     opacity: float = 1.
@@ -192,6 +219,7 @@ def remove_layer_by_path(project, path):
     return False
 
 
+@headless_qt
 @qgis_lazy_import({
     "qgis.core": [
         "QgsApplication", "QgsProject",
