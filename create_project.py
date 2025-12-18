@@ -427,15 +427,17 @@ def create_qgis_project(
             print(f"File does not exist: {ds.file}")
             continue
 
+        ds_name = ds.name or os.path.basename(ds.file)
+
         # Determine layer type
         ext = os.path.splitext(ds.file)[1].lower()
         if ext in ['.shp', '.geojson', '.gpkg']:
-            layer = QgsVectorLayer(ds.file, os.path.basename(ds.file), "ogr")
+            layer = QgsVectorLayer(ds.file, ds_name, "ogr")
 
         # TODO: nc flipped?
         # TODO: could use uri='NETCDF:"/path/to/file/myfile.nc":myvariable' isntead of ds.file for netCDF
         elif ext in ['.tif', '.tiff', '.img', '.nc']:
-            layer = QgsRasterLayer(ds.file, os.path.basename(ds.file))
+            layer = QgsRasterLayer(ds.file, ds_name)
             if ds.colormap == "bw":
                 set_bw_colorbar_limits(layer, ds.vmin, ds.vmax)
             else:
