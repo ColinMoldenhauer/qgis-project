@@ -25,11 +25,9 @@ def assert_link(f):
     """
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-        print("execute wrapper")
         if not hasattr(self, "qgis_layer"):
             raise QgisLayerLinkError()
-        else:
-            return f(*args, **kwargs)
+        return f(self, *args, **kwargs)
     return wrapper
 
 

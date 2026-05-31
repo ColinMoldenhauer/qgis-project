@@ -18,8 +18,8 @@ class Style:
 
     def set_style(self, layer: Layer):
         """Apply the style to the low-level QGIS objects for layer styling."""
-        if layer.opacity is not None:
-            layer.setOpacity(layer.opacity)
+        if self.opacity is not None:
+            layer.qgis_layer.setOpacity(self.opacity)
 
 
 @dataclass
@@ -56,7 +56,8 @@ class RasterStyleBW(RasterStyle):
         vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
 
         # https://gis.stackexchange.com/questions/377569/setting-max-min-values-of-singleband-grey-layer-using-pyqgis
-        renderer = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)   # TODO: what is 1?
+        qgis_layer = layer.qgis_layer
+        renderer = QgsSingleBandGrayRenderer(qgis_layer.dataProvider(), 1)   # TODO: what is 1?
         render_type = renderer.dataType(1)   # TODO: what is 1?
         enhancement = QgsContrastEnhancement(render_type)
         contrast_enhancement = QgsContrastEnhancement.StretchToMinimumMaximum
@@ -64,9 +65,9 @@ class RasterStyleBW(RasterStyle):
         enhancement.setMinimumValue(vmin)
         enhancement.setMaximumValue(vmax)
 
-        layer.setRenderer(renderer)
-        layer.renderer().setContrastEnhancement(enhancement)
-        layer.triggerRepaint()  # TODO: necessary?
+        qgis_layer.setRenderer(renderer)
+        qgis_layer.renderer().setContrastEnhancement(enhancement)
+        qgis_layer.triggerRepaint()  # TODO: necessary?
 
 
 

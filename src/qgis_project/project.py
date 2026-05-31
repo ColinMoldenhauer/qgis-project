@@ -65,11 +65,11 @@ class Project:
         layer.style.set_style(layer)
 
 
-        if not layer.isValid():
+        if not qgis_layer.isValid():
             logger.error(f"Failed to load layer: {layer.file}")
             return
         else:
-            logger.log(f"Successfully loaded layer: {layer.file}")
+            logger.info(f"Successfully loaded layer: {layer.file}")
 
             layer_path = layer.get_path()
             if layer_exists_by_path(self._project, layer_path):
@@ -82,7 +82,7 @@ class Project:
             self._project.addMapLayer(qgis_layer, addToLegend=add_to_root)
 
             group_str = '/'.join(['/ROOT', *layer.get_path()[:-1]])
-            logger.log(f"Added layer   '{layer.get_layer_name()}' @ group {group_str}")
+            logger.info(f"Added layer   '{layer.get_layer_name()}' @ group {group_str}")
 
             if not add_to_root:
                 group = add_or_get_group(self._project, layer.get_path()[:-1])
@@ -92,7 +92,7 @@ class Project:
         if layer.crs is not None:
             if isinstance(layer.crs, int):
                 layer.crs = f"EPSG:{layer.crs}"
-            layer.setCrs(QgsCoordinateReferenceSystem(layer.crs))
+            qgis_layer.setCrs(QgsCoordinateReferenceSystem(layer.crs))
 
         # show/hide layer
         layer_node = self._project.layerTreeRoot().findLayer(layer.qgis_layer.id())
@@ -138,7 +138,7 @@ class Project:
             self.center()
 
         self._project.write(file)
-        logger.log(f"Project saved to: {file}")
+        logger.info(f"Project saved to: {file}")
 
 
     # TODO: how to do proper cleanup?
