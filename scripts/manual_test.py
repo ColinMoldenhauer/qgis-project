@@ -10,7 +10,6 @@ Usage
 
 import argparse
 import sys
-import tempfile
 from pathlib import Path
 
 
@@ -154,27 +153,18 @@ def run(out_dir: Path, open_qgis: bool = True):
 # Entry point
 # ---------------------------------------------------------------------------
 
+_DEFAULT_OUT = Path(__file__).parent.parent / "output" / "manual_test"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--no-open", action="store_true", help="Don't launch QGIS after saving")
-    parser.add_argument("--out", metavar="DIR", help="Output directory (default: a new temp dir)")
+    parser.add_argument("--out", metavar="DIR", help=f"Output directory (default: {_DEFAULT_OUT})")
     args = parser.parse_args()
 
-    if args.out:
-        out_dir = Path(args.out)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        run(out_dir, open_qgis=not args.no_open)
-    elif args.no_open:
-        # Auto-cleanup is safe when QGIS won't be reading the files after exit
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            run(Path(tmp), open_qgis=False)
-    else:
-        # subprocess.Popen is non-blocking: the temp dir must outlive this
-        # process so QGIS can still read the .qgz. Use mkdtemp (no auto-cleanup)
-        # and let the OS clear it eventually.
-        tmp = Path(tempfile.mkdtemp(prefix="qgis_project_manual_test_"))
-        print(f"(temp files in {tmp} — not auto-deleted while QGIS is open)")
-        run(tmp, open_qgis=True)
+    out_dir = Path(args.out) if args.out else _DEFAULT_OUT
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run(out_dir, open_qgis=not args.no_open)
 
 
 if __name__ == "__main__":
