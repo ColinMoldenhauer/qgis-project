@@ -13,8 +13,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Synthetic data helpers
@@ -22,6 +20,10 @@ import numpy as np
 
 def _make_raster(path: Path, rows: int = 64, cols: int = 64, seed: int = 0) -> Path:
     """Write a small single-band float32 GeoTIFF at *path*."""
+    try:
+        import numpy as np
+    except ImportError:
+        sys.exit("numpy not found: pip install numpy")
     try:
         from osgeo import gdal, osr
     except ImportError:
