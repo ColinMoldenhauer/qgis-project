@@ -1,7 +1,64 @@
 import importlib
+import os
+import platform
+import sys
 from functools import wraps
 
 from loguru import logger
+
+
+def setup_qgis_env() -> bool:
+    """
+    Make the QGIS Python bindings importable by auto-configuring sys.path.
+
+    When QGIS is installed via conda-forge, its Python bindings are not
+    placed on sys.path automatically. This function detects the active conda
+    environment and adds the correct paths for the current platform.
+
+    Returns True if ``import qgis`` succeeds after this call, False if QGIS
+    could not be located (the package can still be imported, QGIS-backed
+    methods will just raise ModuleNotFoundError at call time).
+    """
+    try:
+        import qgis  # noqa: F401
+        return True
+    except ImportError:
+        pass
+
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if not conda_prefix:
+        return False
+
+    if platform.system() == "Windows":
+        # conda-forge QGIS on Windows: bindings live under Library/python
+        python_paths = [os.path.join(conda_prefix, "Library", "python")]
+        dll_dir = os.path.join(conda_prefix, "Library", "bin")
+    else:
+        # conda-forge QGIS on Linux/Mac: bindings under share/qgis/python
+        python_paths = [
+            os.path.join(conda_prefix, "share", "qgis", "python"),
+            os.path.join(conda_prefix, "share", "qgis", "python", "plugins"),
+        ]
+        dll_dir = None
+
+    for path in python_paths:
+        if os.path.isdir(path) and path not in sys.path:
+            sys.path.insert(0, path)
+            logger.debug(f"Added to sys.path: {path}")
+
+    if dll_dir and os.path.isdir(dll_dir):
+        os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
+        # Python 3.8+ on Windows requires explicit DLL directory registration
+        if hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(dll_dir)
+
+    try:
+        import qgis  # noqa: F401
+        logger.debug("QGIS Python bindings found and configured.")
+        return True
+    except ImportError:
+        logger.debug("QGIS Python bindings not found after path setup.")
+        return False
 
 
 def qgis_lazy_import(imports_dict):
