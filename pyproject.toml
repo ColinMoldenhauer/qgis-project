@@ -39,8 +39,12 @@ dependencies = [
 dev = [
   "pytest",
   "pytest-cov",
-  "pytest-qgis",
   "mypy>=1.0.0",
+]
+# pytest-qgis imports qgis at plugin load time, so it must only be installed
+# in an environment where QGIS is already present.
+qgis-dev = [
+  "pytest-qgis",
 ]
 docs = [
   "mkdocs-material",
