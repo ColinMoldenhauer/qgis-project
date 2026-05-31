@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -57,7 +57,10 @@ Issues = "https://github.com/ColinMoldenhauer/qgis-project/issues"
 Source = "https://github.com/ColinMoldenhauer/qgis-project"
 
 [tool.hatch.version]
-path = "src/qgis_project/__about__.py"
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/qgis_project/__about__.py"
 
 [tool.hatch.envs.default]
 dependencies = [
