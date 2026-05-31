@@ -1,7 +1,12 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from qgis_project.layer import Layer
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 from qgis_project.utils import qgis_lazy_import
+
+if TYPE_CHECKING:
+    from qgis_project.layer import Layer
 
 
 @dataclass
