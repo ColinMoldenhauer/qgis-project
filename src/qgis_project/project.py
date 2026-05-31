@@ -10,24 +10,13 @@ import tempfile
 from loguru import logger
 
 from qgis_project.layer import Layer
-from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, qgis_lazy_import, remove_layer_by_path
+from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, remove_layer_by_path
 
 
-@qgis_lazy_import({
-    "qgis.core": [
-        "QgsApplication", "QgsProject",
-        "QgsVectorLayer", "QgsRasterLayer",
-        "QgsMapSettings", "QgsCoordinateReferenceSystem",
-        "QgsColorRampShader", "QgsRasterShader",
-        "QgsSingleBandPseudoColorRenderer", "QgsSingleBandGrayRenderer",
-        "QgsContrastEnhancement", "QgsRasterBandStats", "QgsStyle",
-        "QgsLayerTreeGroup", "QgsLayerTreeLayer",
-    ],
-    "qgis.PyQt.QtGui": ["QColor"],
-    "qgis.gui": ["QgsMapCanvas"]
-})
 class Project:
     def __init__(self, file: str | None = None):
+        from qgis.core import QgsApplication, QgsProject
+        from qgis.gui import QgsMapCanvas
 
         self._application = QgsApplication([], False)
         self._application.initQgis()
@@ -39,6 +28,8 @@ class Project:
 
     def _add_layer(self, layer: Layer):
         """Add a layer to the underlying project."""
+        from qgis.core import QgsVectorLayer, QgsRasterLayer, QgsCoordinateReferenceSystem
+
         if not os.path.exists(layer.file):
             logger.error(f"File does not exist: {layer.file}")
             return

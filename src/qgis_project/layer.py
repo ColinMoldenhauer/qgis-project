@@ -8,7 +8,6 @@ from dataclasses import dataclass
 import pickle
 
 from qgis_project.style import RasterStyle
-from qgis_project.utils import qgis_lazy_import
 
 
 
@@ -78,7 +77,6 @@ class Layer:
         return self.qgis_layer.extent()
 
 
-@qgis_lazy_import({"qgis.core": ["QgsRasterBandStats"]})
 class RasterLayer(Layer):
     # TODO: how to handle multi-layer visualization (pseudo-color plots)
     band_idx: int | list[int] = 1
@@ -87,13 +85,13 @@ class RasterLayer(Layer):
     # TODO: computation mode estimate/exact
     @assert_link
     def get_layer_min(self):
-        vmin = self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Min).minimumValue
-        return vmin
+        from qgis.core import QgsRasterBandStats
+        return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Min).minimumValue
 
     @assert_link
     def get_layer_max(self):
-        vmax = self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
-        return vmax
+        from qgis.core import QgsRasterBandStats
+        return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
 
     def set_band_idx(self, band_idx: int | list[int]):
         self.band_idx = band_idx
