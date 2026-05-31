@@ -15,8 +15,18 @@ from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_
 
 class Project:
     def __init__(self, file: str | None = None):
+        import platform
         from qgis.core import QgsApplication, QgsProject
         from qgis.gui import QgsMapCanvas
+
+        # setPrefixPath must be called before initQgis so QGIS can locate its
+        # resources (data providers, projection databases, etc.).
+        # Without it, QgsProject.write() silently fails and returns False.
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        if conda_prefix:
+            prefix = os.path.join(conda_prefix, "Library") if platform.system() == "Windows" else conda_prefix
+            QgsApplication.setPrefixPath(prefix, True)
+            logger.debug(f"QGIS prefix path: {prefix}")
 
         self._application = QgsApplication([], False)
         self._application.initQgis()
@@ -137,7 +147,12 @@ class Project:
 
     def save(self, file: str):
         """Save the project to a .qgz file."""
-        self._project.write(file)
+        ok = self._project.write(file)
+        if not ok:
+            raise RuntimeError(
+                f"QgsProject.write() failed for: {file}\n"
+                "Make sure the QGIS prefix path is set correctly."
+            )
         logger.info(f"Project saved to: {file}")
 
 

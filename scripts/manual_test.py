@@ -164,10 +164,17 @@ def main():
         out_dir = Path(args.out)
         out_dir.mkdir(parents=True, exist_ok=True)
         run(out_dir, open_qgis=not args.no_open)
-    else:
-        # ignore_cleanup_errors: QGIS holds file locks on Windows after exit()
+    elif args.no_open:
+        # Auto-cleanup is safe when QGIS won't be reading the files after exit
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            run(Path(tmp), open_qgis=not args.no_open)
+            run(Path(tmp), open_qgis=False)
+    else:
+        # subprocess.Popen is non-blocking: the temp dir must outlive this
+        # process so QGIS can still read the .qgz. Use mkdtemp (no auto-cleanup)
+        # and let the OS clear it eventually.
+        tmp = Path(tempfile.mkdtemp(prefix="qgis_project_manual_test_"))
+        print(f"(temp files in {tmp} — not auto-deleted while QGIS is open)")
+        run(tmp, open_qgis=True)
 
 
 if __name__ == "__main__":
