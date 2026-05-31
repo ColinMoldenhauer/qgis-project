@@ -35,15 +35,15 @@ def qgis_lazy_import(imports_dict):
     return decorator
 
 
-
-@qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})
+@qgis_lazy_import({"qgis.core": ["QgsLayerTreeLayer"]})
 def get_layer_by_idx(project, idx: int):
-    root = project.layerTreeRoot()
-
-    # collect all layers
-    # use index to return layer
-
-    # TODO: implement
+    """Return the QGIS layer at position *idx* in a flat, depth-first traversal of the layer tree."""
+    layers = [
+        node.layer()
+        for node in project.layerTreeRoot().findLayers()
+        if node.layer() is not None
+    ]
+    return layers[idx]
 
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})
@@ -64,7 +64,7 @@ def add_or_get_group(project, group_name: str | list[str]):
         )
         if found is None:
             group_path = '/'.join(['/ROOT', *path, name])
-            logger.log(f"Added group   {group_path}")
+            logger.info(f"Added group   {group_path}")
             group = group.addGroup(name)
         else:
             group = found
@@ -74,20 +74,24 @@ def add_or_get_group(project, group_name: str | list[str]):
 
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup", "QgsLayerTreeLayer"]})
-def layer_exists_by_path(project, path: list[str]) -> bool:
+def layer_exists_by_path(project, path: str | list[str]) -> bool:
     """
     Check if a layer exists at a specific full group path.
-    :param project: QgsProject instance
-    :param path: List like ["Group1", "SubGroup", "LayerName"]
-    :return: True if the layer exists at that path
+
+    Parameters
+    ----------
+    project : QgsProject
+    path : str or list of str
+        Either a bare layer name (no group) or a list like ["Group1", "SubGroup", "LayerName"].
     """
-    if not path or len(path) < 1:
+    if isinstance(path, str):
+        path = [path]
+    if not path:
         return False
 
     *group_path, layer_name = path
     parent = project.layerTreeRoot()
 
-    # Traverse group hierarchy
     for group_name in group_path:
         parent = next(
             (child for child in parent.children()
@@ -95,9 +99,8 @@ def layer_exists_by_path(project, path: list[str]) -> bool:
             None
         )
         if parent is None:
-            return False  # Group path doesn't exist
+            return False
 
-    # Look for a matching layer name in the final group
     for child in parent.children():
         if isinstance(child, QgsLayerTreeLayer) and child.layer().name() == layer_name:
             return True
@@ -106,19 +109,19 @@ def layer_exists_by_path(project, path: list[str]) -> bool:
 
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup", "QgsLayerTreeLayer"]})
-def remove_layer_by_path(project, path):
+def remove_layer_by_path(project, path: str | list[str]) -> bool:
     """
-    Remove a layer by full group path, e.g. ["Group1", "SubGroup", "LayerName"]
+    Remove a layer by full group path, e.g. ["Group1", "SubGroup", "LayerName"].
     """
+    if isinstance(path, str):
+        path = [path]
     if not path:
         return False
 
     parent = project.layerTreeRoot()
     *group_path, layer_name = path
-
     group_path_str = '/'.join(['/ROOT', *group_path])
 
-    # Navigate to the correct group
     for group_name in group_path:
         parent = next(
             (child for child in parent.children()
@@ -129,11 +132,10 @@ def remove_layer_by_path(project, path):
             logger.error(f"Group path not found: {group_path_str}")
             return False
 
-    # Search for the layer in the final group
     for child in parent.children():
         if isinstance(child, QgsLayerTreeLayer) and child.layer().name() == layer_name:
             project.removeMapLayer(child.layer().id())
-            logger.log(f"Removed layer '{layer_name}' @ group {group_path_str}")
+            logger.info(f"Removed layer '{layer_name}' @ group {group_path_str}")
             return True
 
     logger.error(f"Layer '{layer_name}' not found in {group_path_str}")
