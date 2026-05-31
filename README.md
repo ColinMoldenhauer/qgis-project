@@ -1,5 +1,11 @@
 # qgis-project
 
+[![PyPI version](https://img.shields.io/pypi/v/qgis-project)](https://pypi.org/project/qgis-project/)
+[![Python versions](https://img.shields.io/pypi/pyversions/qgis-project)](https://pypi.org/project/qgis-project/)
+[![License](https://img.shields.io/github/license/ColinMoldenhauer/qgis-project)](LICENSE.txt)
+[![CI](https://github.com/ColinMoldenhauer/qgis-project/actions/workflows/test.yml/badge.svg)](https://github.com/ColinMoldenhauer/qgis-project/actions/workflows/test.yml)
+[![Docs](https://readthedocs.org/projects/qgis-project/badge/?version=latest)](https://qgis-project.readthedocs.io/en/latest/)
+
 Create QGIS projects programmatically using Python.
 
 ```python
