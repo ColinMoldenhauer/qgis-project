@@ -40,7 +40,10 @@ def qgis_lazy_import(imports_dict):
 def get_layer_by_idx(project, idx: int):
     root = project.layerTreeRoot()
 
-    # TODO: is implementation necessary?
+    # collect all layers
+    # use index to return layer
+
+    # TODO: implement
 
 
 @qgis_lazy_import({"qgis.core": ["QgsLayerTreeGroup"]})

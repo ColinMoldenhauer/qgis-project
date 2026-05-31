@@ -6,9 +6,18 @@ from qgis_project.utils import qgis_lazy_import
 
 @dataclass
 class Style:
+    """
+    Base class for layer styling.
+
+    Parameters
+    ----------
+    opacity : float
+        The layer opacity in the interval [0, 1]
+    """
     opacity: float = 1.
 
     def set_style(self, layer: Layer):
+        """Apply the style to the low-level QGIS objects for layer styling."""
         if layer.opacity is not None:
             layer.setOpacity(layer.opacity)
 
@@ -18,12 +27,27 @@ class Style:
     "qgis.core": ["QgsSingleBandGrayRenderer", "QgsContrastEnhancement"],
 })
 class RasterStyle(Style):
+    """
+    Base class for raster layer styling.
+
+    Parameters
+    ----------
+    vmin : float | None
+        The minimum value used for the colorbar.
+        If None, will be automatically determined from the layer data
+    vmax : float | None
+        The maximum value used for the colorbar.
+        If None, will be automatically determined from the layer data
+    """
     vmin: float | None = None
     vmax: float | None = None
 
 
 @dataclass
 class RasterStyleBW(RasterStyle):
+    """
+    A black-and-white style for raster layers.
+    """
 
     def set_style(self, layer: Layer):
         super().set_style(layer)
@@ -46,9 +70,34 @@ class RasterStyleBW(RasterStyle):
 
 
 
-
+# TODO: implement and test
 @dataclass
-class RasterStylePseudocolor(RasterStyle):
+class RasterStyleSinglePseudocolor(RasterStyle):
+    """
+    A single-band pseudocolor style for raster layers.
+
+    Parameters
+    ----------
+    colormap : str
+        Name of the colormap to use for layer styling
+    """
+    colormap: str = "viridis"
+
+    # TODO: check with CLIMERS PC
+    # def set_style(self): pass
+
+
+# TODO: implement and test
+@dataclass
+class RasterStyleMultiPseudocolor(RasterStyle):
+    """
+    A multi-band pseudocolor style for raster layers.
+
+    Parameters
+    ----------
+    colormap : str
+        Name of the colormap to use for layer styling
+    """
     colormap: str = "viridis"
 
     # TODO: check with CLIMERS PC

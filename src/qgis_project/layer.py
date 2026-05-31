@@ -75,10 +75,15 @@ class Layer:
     def set_qgis_layer(self, qgis_layer):
         self.qgis_layer = qgis_layer
 
+    @assert_link
+    def get_layer_extent(self):
+        return self.qgis_layer.extent()
+
 
 @qgis_lazy_import({"qgis.core": ["QgsRasterBandStats"]})
 class RasterLayer(Layer):
-    band_idx: int = 1
+    # TODO: how to handle multi-layer visualization (pseudo-color plots)
+    band_idx: int | list[int] = 1
     style: RasterStyle = RasterStyle()
 
     # TODO: computation mode estimate/exact
@@ -89,10 +94,10 @@ class RasterLayer(Layer):
 
     @assert_link
     def get_layer_max(self):
-        vmin = self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
-        return vmin
+        vmax = self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
+        return vmax
 
-    def set_band_idx(self, band_idx: int):
+    def set_band_idx(self, band_idx: int | list[int]):
         self.band_idx = band_idx
 
         # TODO: re-compute min/max? redraw? other re-computes?
