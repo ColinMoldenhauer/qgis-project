@@ -1,0 +1,63 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Fast job: tests that don't require QGIS (imports, dataclasses, utilities).
+  # Runs on standard GitHub runners with plain pip.
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package with dev dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short -m "not qgis"
+
+  # Slow job: full integration tests using a conda QGIS environment.
+  # Triggered manually or on pushes to main; allowed to fail until
+  # a stable QGIS test suite is established.
+  test-qgis:
+    name: Test with QGIS (conda)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment_platform_independent.yml
+          activate-environment: qgis-env-pi
+          auto-activate-base: false
+
+      - name: Install package into QGIS environment
+        shell: bash -el {0}
+        run: pip install -e ".[dev]"
+
+      - name: Configure QGIS PYTHONPATH
+        shell: bash -el {0}
+        run: |
+          echo "PYTHONPATH=$CONDA_PREFIX/share/qgis/python:$CONDA_PREFIX/share/qgis/python/plugins:$PYTHONPATH" >> $GITHUB_ENV
+          echo "QT_QPA_PLATFORM=offscreen" >> $GITHUB_ENV
+
+      - name: Run QGIS tests
+        shell: bash -el {0}
+        run: pytest tests/ -v --tb=short -m "qgis"
+        continue-on-error: true

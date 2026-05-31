@@ -41,6 +41,10 @@ dev = [
   "pytest-cov",
   "mypy>=1.0.0",
 ]
+docs = [
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
 
 [project.urls]
 Documentation = "https://github.com/ColinMoldenhauer/qgis-project#readme"

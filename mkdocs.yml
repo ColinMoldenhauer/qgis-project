@@ -1,0 +1,50 @@
+site_name: qgis-project
+site_description: Create QGIS projects programmatically using Python
+site_author: Colin Moldenhauer
+repo_url: https://github.com/ColinMoldenhauer/qgis-project
+repo_name: ColinMoldenhauer/qgis-project
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - API Reference:
+    - Project: api/project.md
+    - Layers: api/layer.md
+    - Styles: api/style.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
