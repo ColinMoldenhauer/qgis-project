@@ -43,7 +43,6 @@ conda install -c conda-forge qgis
 pip install qgis-project
 ```
 
-> **Note:** All QGIS imports are lazy — `import qgis_project` works without QGIS installed. Errors only surface when a QGIS-backed method is actually called.
 
 
 ## Usage
