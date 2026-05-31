@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 
@@ -6,9 +5,10 @@ import pytest
 def sample_tif(tmp_path_factory):
     """A small 10×10 single-band GeoTIFF with values 0–99, EPSG:4326."""
     try:
+        import numpy as np
         from osgeo import gdal, osr
     except ImportError:
-        pytest.skip("GDAL not available")
+        pytest.skip("GDAL or numpy not available")
 
     path = tmp_path_factory.mktemp("data") / "dem.tif"
     driver = gdal.GetDriverByName("GTiff")
