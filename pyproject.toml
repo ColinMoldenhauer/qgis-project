@@ -39,6 +39,7 @@ dependencies = [
 dev = [
   "pytest",
   "pytest-cov",
+  "pytest-qgis",
   "mypy>=1.0.0",
 ]
 docs = [
@@ -77,6 +78,11 @@ extra-dependencies = [
 ]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/qgis_project tests}"
+
+[tool.pytest.ini_options]
+markers = [
+  "qgis: marks tests that require a QGIS installation (deselect with '-m not qgis')",
+]
 
 [tool.coverage.run]
 source_pkgs = ["qgis_project", "tests"]
