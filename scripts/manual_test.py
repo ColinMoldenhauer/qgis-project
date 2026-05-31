@@ -165,8 +165,8 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         run(out_dir, open_qgis=not args.no_open)
     else:
-        # Keep temp dir alive until this process exits so QGIS can read the files
-        with tempfile.TemporaryDirectory() as tmp:
+        # ignore_cleanup_errors: QGIS holds file locks on Windows after exit()
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             run(Path(tmp), open_qgis=not args.no_open)
 
 

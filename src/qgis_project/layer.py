@@ -4,7 +4,7 @@ Module to handle QGIS layer functionality.
 
 from functools import wraps
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import pickle
 
 from qgis_project.style import RasterStyle
@@ -77,10 +77,11 @@ class Layer:
         return self.qgis_layer.extent()
 
 
+@dataclass
 class RasterLayer(Layer):
     # TODO: how to handle multi-layer visualization (pseudo-color plots)
     band_idx: int | list[int] = 1
-    style: RasterStyle = RasterStyle()
+    style: RasterStyle = field(default_factory=RasterStyle)
 
     # TODO: computation mode estimate/exact
     @assert_link
