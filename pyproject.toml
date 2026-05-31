@@ -5,36 +5,67 @@ build-backend = "hatchling.build"
 [project]
 name = "qgis-project"
 dynamic = ["version"]
-description = ''
+description = "Create QGIS projects programmatically using Python"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-keywords = []
+keywords = ["qgis", "gis", "geospatial", "mapping", "cartography"]
 authors = [
   { name = "Colin Moldenhauer", email = "colin.moldenhauer@posteo.de" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering :: GIS",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   "loguru",
 ]
 
+# QGIS is not on PyPI and must be installed separately.
+# Recommended: install via conda-forge (`conda install -c conda-forge qgis`)
+# or use the bundled Python interpreter from a QGIS desktop installation.
+# All QGIS imports in this package are deferred (lazy), so the package
+# can be imported without QGIS installed; errors only occur at call time.
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "mypy>=1.0.0",
+]
+
 [project.urls]
-Documentation = "https://github.com/Colin Moldenhauer/qgis-project#readme"
-Issues = "https://github.com/Colin Moldenhauer/qgis-project/issues"
-Source = "https://github.com/Colin Moldenhauer/qgis-project"
+Documentation = "https://github.com/ColinMoldenhauer/qgis-project#readme"
+Issues = "https://github.com/ColinMoldenhauer/qgis-project/issues"
+Source = "https://github.com/ColinMoldenhauer/qgis-project"
 
 [tool.hatch.version]
 path = "src/qgis_project/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "coverage[toml]>=6.5",
+  "pytest",
+]
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
 
 [tool.hatch.envs.types]
 extra-dependencies = [
