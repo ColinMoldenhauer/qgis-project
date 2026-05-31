@@ -1,15 +1,110 @@
 # qgis-project
-Quickly create QGIS projects using Python
+
+Create QGIS projects programmatically using Python.
+
+```python
+from qgis_project import Project, RasterLayer, RasterStyleBW
+
+proj = Project()
+proj.add_layer("dem.tif")                                    # raster, auto-detected
+proj.add_layer("boundaries.geojson")                         # vector, auto-detected
+proj.add_layer(RasterLayer("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000)))
+proj.save("output.qgz")
+proj.open()     # launch QGIS for visual inspection
+```
 
 
 ## Installation
 
-1) Install the package via `pip install qgis-project`
-1) This package requires a functioning conda installation to work. See [the docs](https://www.anaconda.com/docs/getting-started/miniconda/main) for installation instructions.
-1) Create the required auxiliary conda environment with necessary packages via
-    ```
-    wget https://github.com/ColinMoldenhauer/qgis-project/blob/main/environment.yml
-        conda env create -f environment.yml
-    ```
+Install the package:
 
-**Further info**: this package makes use of the `qgis=3.28.12` package, as distributed via conda. This old version has some outdated dependencies and in order not to interfere with your working environment, the dependencies that this package requires under the hood are installed in a separate auxiliary environment (by default called `qgis-env`). There might be a better way to handle these auxiliary dependencies, if you know one, please let me know.
+```bash
+pip install qgis-project
+```
+
+QGIS is not on PyPI and must be available separately. The recommended approach is a dedicated conda environment:
+
+```bash
+conda env create -f environment_platform_independent.yml
+conda activate qgis-env-pi
+pip install qgis-project
+```
+
+Or install QGIS from conda-forge into an existing environment:
+
+```bash
+conda install -c conda-forge qgis
+pip install qgis-project
+```
+
+> **Note:** All QGIS imports are lazy — `import qgis_project` works without QGIS installed. Errors only surface when a QGIS-backed method is actually called.
+
+
+## Usage
+
+### Basic project
+
+```python
+from qgis_project import Project
+
+proj = Project()
+proj.add_layer("dem.tif")
+proj.add_layer("roads.geojson")
+proj.save("my_project.qgz")
+proj.exit()
+```
+
+### Layer groups
+
+```python
+proj.add_layer(RasterLayer("dem.tif", group="terrain"))
+proj.add_layer(RasterLayer("slope.tif", group=["terrain", "derived"]))
+```
+
+### Raster styling
+
+```python
+from qgis_project import RasterLayer, RasterStyleBW
+
+layer = RasterLayer(
+    file="dem.tif",
+    name="Elevation",
+    group="terrain",
+    style=RasterStyleBW(vmin=0, vmax=3000),
+)
+proj.add_layer(layer)
+```
+
+### Open in QGIS
+
+```python
+proj.open("output.qgz")      # saves and launches QGIS
+proj.print_layer_tree()      # inspect the layer tree in the terminal
+```
+
+
+## Development
+
+Install with dev dependencies:
+
+```bash
+pip install -e ".[dev]"
+```
+
+Run unit tests (no QGIS required):
+
+```bash
+pytest -m "not qgis"
+```
+
+Run integration tests (QGIS environment required):
+
+```bash
+pytest -m qgis
+```
+
+Run the manual visual test:
+
+```bash
+python scripts/manual_test.py
+```
