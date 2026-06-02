@@ -3,6 +3,7 @@ name: Tests
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -124,6 +125,7 @@ jobs:
   integration-standalone-windows:
     name: Integration (Strategy 2, Windows Chocolatey, QGIS ${{ matrix.qgis_pkg }})
     runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: false
       matrix:
