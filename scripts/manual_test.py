@@ -1,9 +1,9 @@
 """
-Manual visual test — exercises the full API with synthetic data, then opens QGIS.
+Manual visual test - exercises the full API with synthetic data, then opens QGIS.
 
 Usage
 -----
-    python scripts/manual_test.py              # run and open QGIS
+    python scripts/manual_test.py             # run and open QGIS
     python scripts/manual_test.py --no-open   # run without opening QGIS
     python scripts/manual_test.py --out DIR   # save project to DIR instead of a temp dir
 """
@@ -11,6 +11,8 @@ Usage
 import argparse
 import sys
 from pathlib import Path
+
+from qgis_project import Project, RasterLayer, RasterStyleBW
 
 
 # ---------------------------------------------------------------------------
@@ -23,10 +25,7 @@ def _make_raster(path: Path, rows: int = 64, cols: int = 64, seed: int = 0) -> P
         import numpy as np
     except ImportError:
         sys.exit("numpy not found: pip install numpy")
-    try:
-        from osgeo import gdal, osr
-    except ImportError:
-        sys.exit("GDAL not found. Run this script inside your QGIS conda environment.")
+    from osgeo import gdal, osr
 
     rng = np.random.default_rng(seed)
     data = rng.uniform(0, 3000, (rows, cols)).astype(np.float32)
@@ -75,19 +74,17 @@ def _make_vector(path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 def run(out_dir: Path, open_qgis: bool = True):
-    from qgis_project import Project, RasterLayer, RasterStyleBW
-
-    print("── Creating synthetic test data ──")
+    print("-- Creating synthetic test data --")
     dem      = _make_raster(out_dir / "dem.tif",      seed=0)
     slope    = _make_raster(out_dir / "slope.tif",    seed=1)
     regions  = _make_vector(out_dir / "regions.geojson")
     print(f"  dem.tif, slope.tif, regions.geojson  →  {out_dir}")
 
-    print("\n── Building project ──")
+    print("\n-- Building project --")
     proj = Project()
 
     # 1. Simple string shorthand (auto-detects raster/vector)
-    print("  [1] add_layer(str) — auto-detect")
+    print("  [1] add_layer(str) - auto-detect")
     proj.add_layer(str(regions))
 
     # 2. Raster with BW style, explicit limits
@@ -99,7 +96,7 @@ def run(out_dir: Path, open_qgis: bool = True):
     ))
 
     # 3. Raster with auto-limits (vmin/vmax inferred from data)
-    print("  [3] RasterLayer with RasterStyleBW — auto limits")
+    print("  [3] RasterLayer with RasterStyleBW - auto limits")
     proj.add_layer(RasterLayer(
         file=str(dem),
         name="DEM (auto limits)",
@@ -133,7 +130,7 @@ def run(out_dir: Path, open_qgis: bool = True):
         style=RasterStyleBW(),
     ))
 
-    print("\n── Layer tree ──")
+    print("\n-- Layer tree --")
     proj.print_layer_tree()
 
     out_file = str(out_dir / "manual_test.qgz")
@@ -141,7 +138,7 @@ def run(out_dir: Path, open_qgis: bool = True):
     print(f"\nProject saved → {out_file}")
 
     if open_qgis:
-        print("Launching QGIS…")
+        print("Launching QGIS...")
         proj.open(out_file)
         print("QGIS is running. The Python process will exit; QGIS stays open.")
     else:

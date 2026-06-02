@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo-text.png" alt="qgis-project"/>
+</p>
+
 # qgis-project
 
 Create QGIS projects programmatically using Python — a matplotlib-style API for building `.qgz` project files.
@@ -28,8 +32,6 @@ pip install qgis-project
 ```
 
 See the [repository README](https://github.com/ColinMoldenhauer/qgis-project#readme) for full environment setup instructions.
-
-> **Lazy imports:** all QGIS symbols are imported on first use, so `import qgis_project` works in any Python environment. Errors only occur at call time if QGIS is missing.
 
 
 ## Quick start

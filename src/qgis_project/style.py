@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from qgis.core import QgsContrastEnhancement, QgsSingleBandGrayRenderer
+
 if TYPE_CHECKING:
     from qgis_project.layer import Layer
 
@@ -55,7 +57,6 @@ class RasterStyleBW(RasterStyle):
         vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
         vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
 
-        from qgis.core import QgsSingleBandGrayRenderer, QgsContrastEnhancement
         # https://gis.stackexchange.com/questions/377569/setting-max-min-values-of-singleband-grey-layer-using-pyqgis
         qgis_layer = layer.qgis_layer
         renderer = QgsSingleBandGrayRenderer(qgis_layer.dataProvider(), 1)   # TODO: what is 1?

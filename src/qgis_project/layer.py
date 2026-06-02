@@ -2,10 +2,14 @@
 Module to handle QGIS layer functionality.
 """
 
-from functools import wraps
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
+from functools import wraps
 import pickle
+
+from qgis.core import QgsRasterBandStats
 
 from qgis_project.style import RasterStyle
 
@@ -86,12 +90,10 @@ class RasterLayer(Layer):
     # TODO: computation mode estimate/exact
     @assert_link
     def get_layer_min(self):
-        from qgis.core import QgsRasterBandStats
         return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Min).minimumValue
 
     @assert_link
     def get_layer_max(self):
-        from qgis.core import QgsRasterBandStats
         return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
 
     def set_band_idx(self, band_idx: int | list[int]):

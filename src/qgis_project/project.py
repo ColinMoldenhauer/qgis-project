@@ -2,12 +2,24 @@
 Module to handle QGIS project functionality.
 """
 
+from __future__ import annotations
+
 import os
 import shutil
 import subprocess
 import tempfile
 
 from loguru import logger
+from qgis.core import (
+    QgsApplication,
+    QgsCoordinateReferenceSystem,
+    QgsLayerTreeGroup,
+    QgsLayerTreeLayer,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
+from qgis.gui import QgsMapCanvas
 
 from qgis_project.layer import Layer
 from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, remove_layer_by_path
@@ -15,19 +27,6 @@ from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_
 
 class Project:
     def __init__(self, file: str | None = None):
-        import platform
-        from qgis.core import QgsApplication, QgsProject
-        from qgis.gui import QgsMapCanvas
-
-        # setPrefixPath must be called before initQgis so QGIS can locate its
-        # resources (data providers, projection databases, etc.).
-        # Without it, QgsProject.write() silently fails and returns False.
-        conda_prefix = os.environ.get("CONDA_PREFIX")
-        if conda_prefix:
-            prefix = os.path.join(conda_prefix, "Library") if platform.system() == "Windows" else conda_prefix
-            QgsApplication.setPrefixPath(prefix, True)
-            logger.debug(f"QGIS prefix path: {prefix}")
-
         self._application = QgsApplication([], False)
         self._application.initQgis()
 
@@ -38,8 +37,6 @@ class Project:
 
     def _add_layer(self, layer: Layer):
         """Add a layer to the underlying project."""
-        from qgis.core import QgsVectorLayer, QgsRasterLayer, QgsCoordinateReferenceSystem
-
         if not os.path.exists(layer.file):
             logger.error(f"File does not exist: {layer.file}")
             return
@@ -163,8 +160,6 @@ class Project:
 
     def print_layer_tree(self):
         """Print the layer tree to stdout."""
-        from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
-
         def _print_node(node, indent: int = 0):
             prefix = "  " * indent
             if isinstance(node, QgsLayerTreeLayer):
