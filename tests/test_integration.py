@@ -1,20 +1,25 @@
 """
-Integration tests — require a QGIS installation.
-Run with: pytest -m qgis
+Integration tests — require a QGIS installation in the current Python process.
+Run with:  pytest -m qgis
 Skip with: pytest -m "not qgis"
 """
 import pytest
 
-from qgis_project import Project, RasterLayer, RasterStyleBW
+# Skip collection if qgis_project itself cannot be imported (no QGIS, no launcher).
+qgis_project = pytest.importorskip("qgis_project", reason="qgis_project not importable")
+Project = qgis_project.Project
+RasterLayer = qgis_project.RasterLayer
+RasterStyleBW = qgis_project.RasterStyleBW
 
 
-@pytest.mark.qgis
+pytestmark = pytest.mark.qgis
+
+
 def test_project_initializes(qgis_app):
     project = Project()
     project.exit()
 
 
-@pytest.mark.qgis
 def test_add_raster_layer_links_qgis_object(qgis_app, sample_tif):
     project = Project()
     layer = RasterLayer(file=str(sample_tif))
@@ -24,7 +29,6 @@ def test_add_raster_layer_links_qgis_object(qgis_app, sample_tif):
     project.exit()
 
 
-@pytest.mark.qgis
 def test_raster_layer_extent_after_add(qgis_app, sample_tif):
     project = Project()
     layer = RasterLayer(file=str(sample_tif))
@@ -35,7 +39,6 @@ def test_raster_layer_extent_after_add(qgis_app, sample_tif):
     project.exit()
 
 
-@pytest.mark.qgis
 def test_raster_style_bw_sets_gray_renderer(qgis_app, sample_tif):
     from qgis.core import QgsSingleBandGrayRenderer
     project = Project()
@@ -45,7 +48,6 @@ def test_raster_style_bw_sets_gray_renderer(qgis_app, sample_tif):
     project.exit()
 
 
-@pytest.mark.qgis
 def test_raster_style_bw_contrast_enhancement(qgis_app, sample_tif):
     vmin, vmax = 10.0, 90.0
     project = Project()
@@ -57,7 +59,6 @@ def test_raster_style_bw_contrast_enhancement(qgis_app, sample_tif):
     project.exit()
 
 
-@pytest.mark.qgis
 def test_project_save_creates_file(qgis_app, sample_tif, tmp_path):
     project = Project()
     project.add_layer(RasterLayer(file=str(sample_tif)))
@@ -67,7 +68,6 @@ def test_project_save_creates_file(qgis_app, sample_tif, tmp_path):
     project.exit()
 
 
-@pytest.mark.qgis
 def test_layer_hidden_visibility(qgis_app, sample_tif):
     from qgis.core import QgsProject
     project = Project()
@@ -75,4 +75,20 @@ def test_layer_hidden_visibility(qgis_app, sample_tif):
     project.add_layer(layer)
     node = QgsProject.instance().layerTreeRoot().findLayer(layer.qgis_layer.id())
     assert not node.isVisible()
+    project.exit()
+
+
+def test_add_vector_layer(qgis_app, vector_file):
+    project = Project()
+    project.add_layer(str(vector_file))
+    project.exit()
+
+
+def test_layer_group(qgis_app, sample_tif):
+    from qgis.core import QgsLayerTreeGroup, QgsProject
+    project = Project()
+    project.add_layer(RasterLayer(file=str(sample_tif), group="terrain"))
+    root = QgsProject.instance().layerTreeRoot()
+    groups = [c for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
+    assert any(g.name() == "terrain" for g in groups)
     project.exit()

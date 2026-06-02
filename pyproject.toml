@@ -33,18 +33,12 @@ dependencies = [
 # QGIS is not on PyPI and must be installed separately.
 # Recommended: install via conda-forge (`conda install -c conda-forge qgis`)
 # or use the bundled Python interpreter from a QGIS desktop installation.
-# All QGIS imports in this package are deferred (lazy), so the package
-# can be imported without QGIS installed; errors only occur at call time.
 [project.optional-dependencies]
 dev = [
   "pytest",
   "pytest-cov",
   "mypy>=1.0.0",
-]
-# pytest-qgis imports qgis at plugin load time, so it must only be installed
-# in an environment where QGIS is already present.
-qgis-dev = [
-  "pytest-qgis",
+  "numpy",
 ]
 docs = [
   "mkdocs-material",
@@ -88,7 +82,8 @@ check = "mypy --install-types --non-interactive {args:src/qgis_project tests}"
 
 [tool.pytest.ini_options]
 markers = [
-  "qgis: marks tests that require a QGIS installation (deselect with '-m not qgis')",
+  "qgis: requires QGIS importable in this Python process (Strategy 1 or 3)",
+  "launcher: requires a standalone QGIS launcher (python-qgis.bat / Strategy 2)",
 ]
 
 [tool.coverage.run]

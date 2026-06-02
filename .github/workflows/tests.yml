@@ -1,0 +1,94 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # --------------------------------------------------------------------------
+  # Pure-Python unit tests — no QGIS required.
+  # Covers: Layer/RasterLayer/Style, _spec serialization, _env path detection.
+  # --------------------------------------------------------------------------
+  unit:
+    name: Unit (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package and dev deps
+        run: pip install -e ".[dev]"
+      - name: Run unit tests
+        run: pytest tests/ -m "not qgis and not launcher" -v
+
+  # --------------------------------------------------------------------------
+  # Integration tests — QGIS via conda-forge (Strategy 3).
+  # Covers: Project creation, add_layer, save, style application.
+  # --------------------------------------------------------------------------
+  integration-conda:
+    name: Integration (Strategy 3, ${{ matrix.os }}, QGIS ${{ matrix.qgis }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        qgis: ["3.28", "3.34", "3.40"]
+        exclude:
+          # Reduce matrix: only run LTR + latest on each platform
+          - os: windows-latest
+            qgis: "3.34"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          activate-environment: qgis-test
+          channels: conda-forge,defaults
+
+      - name: Install QGIS ${{ matrix.qgis }} and deps
+        shell: bash -l {0}
+        run: |
+          mamba install -y "qgis=${{ matrix.qgis }}.*" numpy loguru
+          pip install -e ".[dev]"
+
+      - name: Run integration tests
+        shell: bash -l {0}
+        run: pytest tests/ -m qgis -v
+
+  # --------------------------------------------------------------------------
+  # Subprocess strategy tests (Strategy 2) — standalone QGIS required.
+  #
+  # These tests require python-qgis.bat (Windows) or python-qgis.sh (Linux)
+  # from a standalone QGIS installer, which is not practical to install in
+  # standard GitHub Actions runners due to size (~1 GB) and install time.
+  #
+  # Options for running these tests:
+  #   1. Self-hosted runner with QGIS pre-installed:
+  #        runs-on: [self-hosted, qgis-installed]
+  #   2. Manually on a developer machine:
+  #        pytest tests/ -m launcher
+  #   3. Chocolatey on Windows (slow, ~20 min):
+  #        choco install qgis --version=3.28.0
+  #
+  # Uncomment and adapt the job below to enable on a self-hosted runner:
+  # --------------------------------------------------------------------------
+
+  # integration-standalone:
+  #   name: Integration (Strategy 2, standalone QGIS)
+  #   runs-on: [self-hosted, windows, qgis]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install package
+  #       run: pip install -e ".[dev]"
+  #     - name: Run subprocess strategy tests
+  #       run: pytest tests/ -m launcher -v

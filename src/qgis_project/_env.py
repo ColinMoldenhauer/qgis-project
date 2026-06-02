@@ -74,6 +74,39 @@ def find_qgis_prefix_path() -> str:
     )
 
 
+def find_qgis_launcher():
+    """Return the path to the platform-specific QGIS Python launcher, or None.
+
+    The launcher is the script that sets up the QGIS environment and then
+    runs the bundled Python interpreter — ``python-qgis.bat`` on Windows,
+    ``python-qgis.sh`` on Linux, and the macOS shell wrapper.  It is used
+    by SubprocessProject to delegate execution to the QGIS Python.
+    """
+    system = platform.system()
+
+    try:
+        prefix = Path(find_qgis_prefix_path())
+    except RuntimeError:
+        return None
+
+    if system == "Windows":
+        # Standalone: prefix = <root>/apps/qgis  →  bat is in <root>/bin
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        is_conda = bool(conda_prefix and str(prefix).startswith(conda_prefix))
+        root = prefix if is_conda else prefix.parent.parent
+        bat = root / "bin" / "python-qgis.bat"
+        return str(bat) if bat.exists() else None
+
+    if system == "Darwin":
+        # /Applications/QGIS.app/Contents/MacOS/bin/python-qgis.sh (if it exists)
+        wrapper = prefix / "bin" / "python-qgis.sh"
+        return str(wrapper) if wrapper.exists() else None
+
+    # Linux
+    wrapper = prefix / "bin" / "python-qgis.sh"
+    return str(wrapper) if wrapper.exists() else None
+
+
 def setup_qgis_env() -> bool:
     """Make the QGIS Python bindings importable by auto-configuring the environment.
 

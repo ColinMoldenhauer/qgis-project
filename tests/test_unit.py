@@ -3,8 +3,9 @@ Unit tests — no QGIS installation required.
 """
 import pytest
 
-from qgis_project import Layer, RasterLayer, Style, RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor
-from qgis_project.layer import QgisLayerLinkError
+# Import directly from submodules so this file is runnable without QGIS.
+from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer
+from qgis_project.style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, Style
 
 
 # ---------------------------------------------------------------------------
