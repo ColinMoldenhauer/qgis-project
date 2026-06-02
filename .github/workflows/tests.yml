@@ -66,29 +66,89 @@ jobs:
         run: pytest tests/ -m qgis -v
 
   # --------------------------------------------------------------------------
-  # Subprocess strategy tests (Strategy 2) — standalone QGIS required.
+  # Integration tests — standalone QGIS via apt (Strategy 1, Linux).
   #
-  # These tests require python-qgis.bat (Windows) or python-qgis.sh (Linux)
-  # from a standalone QGIS installer, which is not practical to install in
-  # standard GitHub Actions runners due to size (~1 GB) and install time.
-  #
-  # Options for running these tests:
-  #   1. Self-hosted runner with QGIS pre-installed:
-  #        runs-on: [self-hosted, qgis-installed]
-  #   2. Manually on a developer machine:
-  #        pytest tests/ -m launcher
-  #   3. Chocolatey on Windows (slow, ~20 min):
-  #        choco install qgis --version=3.28.0
-  #
-  # Uncomment and adapt the job below to enable on a self-hosted runner:
+  # python3-qgis installs QGIS Python bindings into the system Python
+  # (Python 3.10 on Ubuntu 22.04).  A venv with --system-site-packages
+  # inherits those bindings, so import qgis succeeds without conda.
+  # QT_QPA_PLATFORM=offscreen prevents Qt from requiring a display.
   # --------------------------------------------------------------------------
+  integration-standalone-linux:
+    name: Integration (Strategy 1, Linux apt, QGIS ${{ matrix.qgis_suite }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - qgis_suite: ltr    # tracks the current LTR release
+            apt_repo: ubuntu-ltr
+          - qgis_suite: latest
+            apt_repo: ubuntu
+    steps:
+      - uses: actions/checkout@v4
 
-  # integration-standalone:
-  #   name: Integration (Strategy 2, standalone QGIS)
-  #   runs-on: [self-hosted, windows, qgis]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Install package
-  #       run: pip install -e ".[dev]"
-  #     - name: Run subprocess strategy tests
-  #       run: pytest tests/ -m launcher -v
+      - name: Add QGIS apt repository
+        run: |
+          sudo wget -qO /etc/apt/keyrings/qgis-archive-keyring.gpg \
+            https://download.qgis.org/downloads/qgis-archive-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/qgis-archive-keyring.gpg] \
+            https://qgis.org/${{ matrix.apt_repo }} jammy main" \
+            | sudo tee /etc/apt/sources.list.d/qgis.list
+          sudo apt-get update -qq
+
+      - name: Install QGIS and Python bindings
+        run: sudo apt-get install -y qgis python3-qgis
+
+      - name: Create venv inheriting system QGIS bindings
+        run: python3 -m venv --system-site-packages .venv
+
+      - name: Install package into venv
+        run: .venv/bin/pip install -e ".[dev]"
+
+      - name: Run Strategy 1 integration tests
+        run: .venv/bin/pytest tests/ -m qgis -v
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  # --------------------------------------------------------------------------
+  # Integration tests — standalone QGIS via Chocolatey (Strategy 2, Windows).
+  #
+  # Chocolatey installs the same OSGeo4W-based standalone installer used by
+  # end-users, including python-qgis.bat.  SubprocessProject delegates to
+  # that bat, so the test Python version is irrelevant — the subprocess runs
+  # entirely inside QGIS's own bundled Python.
+  #
+  # Approximate times: Chocolatey download + install ~10–15 min.
+  # The installer is cached between runs to speed up subsequent jobs.
+  # --------------------------------------------------------------------------
+  integration-standalone-windows:
+    name: Integration (Strategy 2, Windows Chocolatey, QGIS ${{ matrix.qgis_pkg }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        qgis_pkg: [qgis-ltr, qgis]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Chocolatey packages
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+          key: choco-${{ matrix.qgis_pkg }}-${{ runner.os }}
+
+      - name: Install QGIS via Chocolatey
+        run: choco install ${{ matrix.qgis_pkg }} -y --no-progress
+        shell: powershell
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # any version — subprocess uses QGIS's Python
+
+      - name: Install package
+        run: pip install -e ".[dev]"
+
+      - name: Run Strategy 2 tests (subprocess)
+        run: pytest tests/ -m launcher -v
+        env:
+          QT_QPA_PLATFORM: offscreen
