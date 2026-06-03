@@ -15,6 +15,14 @@ RasterStyleBW = qgis_project.RasterStyleBW
 pytestmark = pytest.mark.qgis
 
 
+@pytest.fixture(autouse=True)
+def _fresh_project():
+    """Clear the QgsProject singleton before each test to prevent state leakage."""
+    from qgis.core import QgsProject
+    QgsProject.instance().clear()
+    yield
+
+
 def test_project_initializes(qgis_app):
     project = Project()
     project.exit()

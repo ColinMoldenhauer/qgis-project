@@ -50,12 +50,20 @@ except ImportError:
 
 @pytest.fixture(scope="session")
 def qgis_app():
-    """Ensure a real QgsApplication is available for the test session.
+    """Initialize a real QgsApplication for the test session.
 
     Skips when QGIS is only present as a mock (no actual installation).
+    Owns the singleton for the full session so tests never destroy and
+    recreate it (which crashes the process on the second creation).
     """
     if not _QGIS_AVAILABLE:
         pytest.skip("QGIS not installed — skipping integration test")
+
+    from qgis.core import QgsApplication
+    app = QgsApplication([], False)
+    app.initQgis()
+    yield app
+    app.exitQgis()
 
 
 @pytest.fixture(scope="session")
