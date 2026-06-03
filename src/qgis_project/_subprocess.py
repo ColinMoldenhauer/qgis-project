@@ -20,6 +20,7 @@ from pathlib import Path
 from loguru import logger
 
 from .layer import Layer, ProcessingOp, WebLayer
+from .utils import normalize_crs
 
 
 class SubprocessProject:
@@ -28,9 +29,12 @@ class SubprocessProject:
     The interface mirrors ``Project`` so user code is strategy-agnostic.
     """
 
-    def __init__(self, file: str | None = None):
+    def __init__(self, file: str | None = None, crs: str | int | None = None):
         self._layers: list[Layer | WebLayer] = []
         self._operations: list[ProcessingOp] = []
+        self._crs: str | None = None
+        if crs is not None:
+            self.set_crs(crs)
         if file is not None:
             logger.warning("Loading an existing project is not supported in subprocess mode.")
 
@@ -50,6 +54,16 @@ class SubprocessProject:
             layer = Layer(layer)
         target = layer.get_path()
         self._layers = [l for l in self._layers if l.get_path() != target]
+
+    def set_crs(self, crs: str | int) -> None:
+        """Set the project's coordinate reference system.
+
+        Parameters
+        ----------
+        crs : str or int
+            EPSG integer (e.g. ``3857``) or authority string (e.g. ``"EPSG:3857"``).
+        """
+        self._crs = normalize_crs(crs)
 
     def process(self, algorithm: str, params: dict, name: str = "", group=None, visible: bool = True) -> None:
         """Queue a QGIS Processing algorithm; its result is added to the project on save.
@@ -135,6 +149,8 @@ class SubprocessProject:
         executor = Path(__file__).parent / "_executor.py"
 
         spec_dict = _spec.to_dict(self._layers, output, action)
+        if self._crs is not None:
+            spec_dict["crs"] = self._crs
         if self._operations:
             spec_dict["operations"] = [dataclasses.asdict(op) for op in self._operations]
 

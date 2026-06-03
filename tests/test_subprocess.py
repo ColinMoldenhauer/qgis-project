@@ -46,6 +46,23 @@ def test_exit_is_noop():
     SubprocessProject().exit()
 
 
+def test_crs_constructor_normalizes():
+    p = SubprocessProject(crs=3857)
+    assert p._crs == "EPSG:3857"
+
+
+def test_set_crs_string():
+    p = SubprocessProject()
+    p.set_crs("EPSG:32632")
+    assert p._crs == "EPSG:32632"
+
+
+def test_set_crs_int():
+    p = SubprocessProject()
+    p.set_crs(4326)
+    assert p._crs == "EPSG:4326"
+
+
 def test_process_accumulates():
     p = SubprocessProject()
     p.process("native:buffer", {"INPUT": "a.shp", "DISTANCE": 100, "OUTPUT": "memory:"}, name="Buffered")

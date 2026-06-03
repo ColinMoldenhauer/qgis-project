@@ -34,6 +34,11 @@ def main() -> None:
     project = QgsProject.instance()
     QgsMapCanvas()  # required for some providers to initialise correctly
 
+    project_crs = spec.get("crs")
+    if project_crs:
+        from qgis.core import QgsCoordinateReferenceSystem
+        project.setCrs(QgsCoordinateReferenceSystem(project_crs))
+
     for layer_spec in spec["layers"]:
         _add_layer(project, layer_spec)
 
@@ -117,9 +122,8 @@ def _add_layer(project, spec: dict) -> None:
         layer_node.setItemVisibilityChecked(visible)
 
     if crs is not None:
-        if isinstance(crs, int):
-            crs = f"EPSG:{crs}"
-        qgis_layer.setCrs(QgsCoordinateReferenceSystem(crs))
+        crs_str = f"EPSG:{crs}" if isinstance(crs, int) else crs
+        qgis_layer.setCrs(QgsCoordinateReferenceSystem(crs_str))
 
 
 def _apply_style(qgis_layer, style_spec: dict, band_idx: int = 1) -> None:

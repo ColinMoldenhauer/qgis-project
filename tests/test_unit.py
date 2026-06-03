@@ -4,8 +4,9 @@ Unit tests — no QGIS installation required.
 import pytest
 
 # Import directly from submodules so this file is runnable without QGIS.
-from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer
+from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer, WebLayer
 from qgis_project.style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, Style
+from qgis_project.utils import normalize_crs
 
 
 # ---------------------------------------------------------------------------
@@ -96,3 +97,55 @@ def test_raster_style_bw_explicit_limits():
 
 def test_raster_style_single_pseudocolor_default_colormap():
     assert RasterStyleSinglePseudocolor().colormap == "viridis"
+
+
+# ---------------------------------------------------------------------------
+# normalize_crs
+# ---------------------------------------------------------------------------
+
+def test_normalize_crs_int():
+    assert normalize_crs(4326) == "EPSG:4326"
+
+def test_normalize_crs_str_passthrough():
+    assert normalize_crs("EPSG:3857") == "EPSG:3857"
+
+def test_normalize_crs_str_custom():
+    assert normalize_crs("ESRI:54009") == "ESRI:54009"
+
+
+# ---------------------------------------------------------------------------
+# WebLayer
+# ---------------------------------------------------------------------------
+
+def test_web_layer_osm_defaults():
+    layer = WebLayer.osm()
+    assert layer.name == "OpenStreetMap"
+    assert layer.provider == "wms"
+    assert "openstreetmap.org" in layer.uri
+
+def test_web_layer_xyz_uri():
+    layer = WebLayer.xyz("https://example.org/{z}/{x}/{y}.png", name="Custom")
+    assert "type=xyz" in layer.uri
+    assert "example.org" in layer.uri
+
+def test_web_layer_wfs_provider():
+    layer = WebLayer.wfs("https://ows.example.org/wfs", typename="ns:rivers")
+    assert layer.provider == "WFS"
+    assert layer.name == "ns:rivers"
+
+def test_web_layer_get_path_with_group():
+    layer = WebLayer.osm(group="Background")
+    assert layer.get_path() == ["Background", "OpenStreetMap"]
+
+def test_web_layer_name_fallback():
+    layer = WebLayer(uri="type=xyz&url=https://x.org/{z}/{x}/{y}.png", provider="wms")
+    assert layer.get_layer_name() == "Web Layer"
+
+
+# ---------------------------------------------------------------------------
+# Layer CRS field is not mutated during normalization
+# ---------------------------------------------------------------------------
+
+def test_layer_crs_int_field_unchanged():
+    layer = Layer(file="dem.tif", crs=4326)
+    assert layer.crs == 4326  # still int — normalization must not mutate this

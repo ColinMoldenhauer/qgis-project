@@ -103,6 +103,36 @@ def test_layer_group(qgis_app, sample_tif):
     project.exit()
 
 
+def test_project_crs_constructor(qgis_app):
+    from qgis.core import QgsProject
+    project = Project(crs="EPSG:3857")
+    assert QgsProject.instance().crs().authid() == "EPSG:3857"
+    project.exit()
+
+
+def test_project_crs_int_form(qgis_app):
+    from qgis.core import QgsProject
+    project = Project(crs=3857)
+    assert QgsProject.instance().crs().authid() == "EPSG:3857"
+    project.exit()
+
+
+def test_project_set_crs(qgis_app):
+    from qgis.core import QgsProject
+    project = Project()
+    project.set_crs(32632)
+    assert QgsProject.instance().crs().authid() == "EPSG:32632"
+    project.exit()
+
+
+def test_layer_crs_field_not_mutated(qgis_app, sample_tif):
+    project = Project()
+    layer = RasterLayer(file=str(sample_tif), crs=4326)
+    project.add_layer(layer)
+    assert layer.crs == 4326  # must remain int, not coerced to "EPSG:4326"
+    project.exit()
+
+
 def test_add_web_layer_osm(qgis_app):
     from qgis.core import QgsProject
     project = Project()

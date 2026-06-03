@@ -85,6 +85,25 @@ proj.open("output.qgz")    # save and launch QGIS
 proj.exit()                 # clean up without opening QGIS
 ```
 
+### Project CRS
+
+Pass `crs` to the constructor or call `set_crs()` at any point before saving.
+Both EPSG integers and authority strings are accepted:
+
+```python
+proj = Project(crs="EPSG:3857")    # Web Mercator
+proj = Project(crs=32632)          # UTM zone 32N (integer form)
+
+proj.set_crs("EPSG:4326")          # change later
+```
+
+Layer CRS overrides work the same way — set `crs` on any `Layer` or `RasterLayer`
+to tell QGIS the layer's CRS when the file lacks embedded metadata:
+
+```python
+proj.add_layer(Layer("scan.tif", crs=4326))
+```
+
 ### Web layers
 
 Add tile services, WMS, or WFS sources with `WebLayer`. The built-in factory methods cover the most common cases:

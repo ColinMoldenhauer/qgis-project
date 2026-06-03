@@ -4,6 +4,14 @@ from loguru import logger
 from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
 
 
+def normalize_crs(crs: str | int) -> str:
+    """Return a CRS authority string, normalizing bare EPSG integers.
+
+    Examples: ``4326`` → ``"EPSG:4326"``, ``"EPSG:3857"`` → ``"EPSG:3857"``.
+    """
+    return f"EPSG:{crs}" if isinstance(crs, int) else crs
+
+
 def get_layer_by_idx(project, idx: int):
     """Return the QGIS layer at position *idx* in a flat, depth-first traversal of the layer tree."""
     layers = [

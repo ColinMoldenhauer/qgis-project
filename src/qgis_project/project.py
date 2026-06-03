@@ -25,11 +25,11 @@ from qgis.core import (
 from qgis.gui import QgsMapCanvas
 
 from qgis_project.layer import Layer, WebLayer
-from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, remove_layer_by_path
+from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, normalize_crs, remove_layer_by_path
 
 
 class Project:
-    def __init__(self, file: str | None = None):
+    def __init__(self, file: str | None = None, crs: str | int | None = None):
         existing = QgsApplication.instance()
         if existing is None:
             self._application = QgsApplication([], False)
@@ -44,6 +44,8 @@ class Project:
         self._processing_initialized = False
         if file is not None:
             self._project.read(file)
+        if crs is not None:
+            self.set_crs(crs)
 
     def _add_layer(self, layer: Layer | WebLayer):
         """Add a layer to the underlying project."""
@@ -92,9 +94,7 @@ class Project:
             group.addLayer(qgis_layer)
 
         if layer.crs is not None:
-            if isinstance(layer.crs, int):
-                layer.crs = f"EPSG:{layer.crs}"
-            qgis_layer.setCrs(QgsCoordinateReferenceSystem(layer.crs))
+            qgis_layer.setCrs(QgsCoordinateReferenceSystem(normalize_crs(layer.crs)))
 
         layer_node = self._project.layerTreeRoot().findLayer(qgis_layer.id())
         layer_node.setItemVisibilityChecked(layer.visible)
@@ -115,6 +115,17 @@ class Project:
         if isinstance(layer, str):
             layer = Layer(layer)
         remove_layer_by_path(self._project, layer.get_path())
+
+
+    def set_crs(self, crs: str | int):
+        """Set the project's coordinate reference system.
+
+        Parameters
+        ----------
+        crs : str or int
+            EPSG integer (e.g. ``3857``) or authority string (e.g. ``"EPSG:3857"``).
+        """
+        self._project.setCrs(QgsCoordinateReferenceSystem(normalize_crs(crs)))
 
 
     def process(self, algorithm: str, params: dict, name: str = "", group=None, visible: bool = True):
