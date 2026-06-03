@@ -8,7 +8,10 @@ _qgis_available = setup_qgis_env()
 if _qgis_available:
     # Strategy 1 (standalone, in-process) or Strategy 3 (conda-forge).
     from qgis.core import QgsApplication
-    QgsApplication.setPrefixPath(find_qgis_prefix_path(), True)
+    try:
+        QgsApplication.setPrefixPath(find_qgis_prefix_path(), True)
+    except RuntimeError:
+        pass  # prefix not found (e.g. mocked qgis in unit-test env); safe to skip
     from .project import Project
 else:
     _launcher = find_qgis_launcher()

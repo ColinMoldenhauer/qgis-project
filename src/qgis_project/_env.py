@@ -52,9 +52,11 @@ def find_qgis_prefix_path() -> str:
             Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")),
         ]:
             for candidate in sorted(base.glob("QGIS*"), reverse=True):
-                prefix = candidate / "apps" / "qgis"
-                if prefix.exists():
-                    return str(prefix)
+                apps_dir = candidate / "apps"
+                # Try versioned names (e.g. apps/qgis, apps/qgis-ltr, apps/qgis4)
+                for app_dir in sorted(apps_dir.glob("qgis*"), reverse=True):
+                    if app_dir.is_dir():
+                        return str(app_dir)
     elif system == "Darwin":
         for app in ["QGIS.app", "QGIS-LTR.app"]:
             prefix = Path("/Applications") / app / "Contents" / "MacOS"
@@ -94,17 +96,25 @@ def find_qgis_launcher():
         conda_prefix = os.environ.get("CONDA_PREFIX")
         is_conda = bool(conda_prefix and str(prefix).startswith(conda_prefix))
         root = prefix if is_conda else prefix.parent.parent
-        bat = root / "bin" / "python-qgis.bat"
-        return str(bat) if bat.exists() else None
+        for bat_name in ["python-qgis.bat", "python-qgis4.bat", "python3-qgis.bat"]:
+            bat = root / "bin" / bat_name
+            if bat.exists():
+                return str(bat)
+        return None
 
     if system == "Darwin":
-        # /Applications/QGIS.app/Contents/MacOS/bin/python-qgis.sh (if it exists)
-        wrapper = prefix / "bin" / "python-qgis.sh"
-        return str(wrapper) if wrapper.exists() else None
+        for name in ["python-qgis.sh", "python-qgis4.sh", "python3-qgis.sh"]:
+            wrapper = prefix / "bin" / name
+            if wrapper.exists():
+                return str(wrapper)
+        return None
 
     # Linux
-    wrapper = prefix / "bin" / "python-qgis.sh"
-    return str(wrapper) if wrapper.exists() else None
+    for name in ["python-qgis.sh", "python-qgis4.sh", "python3-qgis.sh"]:
+        wrapper = prefix / "bin" / name
+        if wrapper.exists():
+            return str(wrapper)
+    return None
 
 
 def setup_qgis_env() -> bool:
