@@ -1,26 +1,68 @@
+"""
+conftest.py — session-wide fixtures and QGIS availability handling.
+
+When QGIS is not installed, a MagicMock is injected into sys.modules for the
+entire qgis.* namespace before any test module is imported.  This allows
+module-level imports like `from qgis.core import QgsRasterBandStats` in the
+source to succeed, so pure-Python unit tests (Layer dataclass, _spec
+serialization, _env path detection) can run without a QGIS installation.
+
+Integration tests that require a live QgsApplication are gated by the
+`qgis_app` fixture, which skips when only the mock is present.
+"""
+
 import json
+import os
+import sys
+from unittest.mock import MagicMock
 
 import pytest
 
+# ---------------------------------------------------------------------------
+# QGIS availability — must happen before any qgis_project import
+# ---------------------------------------------------------------------------
+
+_QGIS_AVAILABLE: bool = False
+
+try:
+    import qgis  # noqa: F401
+    _QGIS_AVAILABLE = True
+except ImportError:
+    _qgis_mock = MagicMock()
+    for _mod in [
+        "qgis",
+        "qgis.core",
+        "qgis.gui",
+        "qgis.PyQt",
+        "qgis.PyQt.QtCore",
+        "qgis.PyQt.QtGui",
+        "qgis.PyQt.QtWidgets",
+    ]:
+        sys.modules[_mod] = _qgis_mock
+    # Provide a dummy prefix so _env.find_qgis_prefix_path() does not raise
+    # after setup_qgis_env() returns True (the mock satisfies `import qgis`).
+    os.environ.setdefault("QGIS_PREFIX_PATH", "/mock/qgis")
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
 def qgis_app():
-    """Ensure QGIS is initialised for the test session.
+    """Ensure a real QgsApplication is available for the test session.
 
-    Our __init__.py calls setup_qgis_env() on import, so by the time any
-    test runs, QGIS is already configured.  This fixture simply verifies
-    the import succeeded; tests that declare it as an argument are skipped
-    when QGIS is not available.
+    Skips when QGIS is only present as a mock (no actual installation).
     """
-    try:
-        import qgis_project  # noqa: F401 — triggers setup_qgis_env
-    except (ImportError, RuntimeError) as e:
-        pytest.skip(f"QGIS not available: {e}")
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed — skipping integration test")
 
 
 @pytest.fixture(scope="session")
 def sample_tif(tmp_path_factory):
     """A small 10x10 single-band float32 GeoTIFF, EPSG:4326, values 0-99."""
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
     try:
         import numpy as np
         from osgeo import gdal, osr
