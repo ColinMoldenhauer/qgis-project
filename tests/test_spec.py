@@ -6,7 +6,7 @@ import json
 import pytest
 
 from qgis_project._spec import from_dict, from_json, to_dict, to_json
-from qgis_project.layer import Layer, RasterLayer
+from qgis_project.layer import Layer, RasterLayer, WebLayer
 from qgis_project.style import RasterStyle, RasterStyleBW
 
 
@@ -66,6 +66,23 @@ def test_multiple_layers_round_trip():
     result, _, _ = from_dict(to_dict(layers, "out.qgz"))
     assert len(result) == 2
     assert isinstance(result[1], RasterLayer)
+
+
+def test_web_layer_round_trip():
+    layers = [WebLayer.osm(group="Background")]
+    result, output, action = from_dict(to_dict(layers, "out.qgz"))
+    assert len(result) == 1
+    assert isinstance(result[0], WebLayer)
+    assert result[0].name == "OpenStreetMap"
+    assert result[0].group == "Background"
+    assert result[0].provider == "wms"
+
+
+def test_web_layer_wfs_round_trip():
+    layers = [WebLayer.wfs("https://example.org/wfs", typename="ns:rivers", name="Rivers")]
+    result, _, _ = from_dict(to_dict(layers, "out.qgz"))
+    assert result[0].provider == "WFS"
+    assert result[0].name == "Rivers"
 
 
 def test_unknown_layer_type_raises():

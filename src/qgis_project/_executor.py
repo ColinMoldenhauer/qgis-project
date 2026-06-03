@@ -37,6 +37,9 @@ def main() -> None:
     for layer_spec in spec["layers"]:
         _add_layer(project, layer_spec)
 
+    for op_spec in spec.get("operations", []):
+        _run_operation(project, op_spec)
+
     _zoom_to_all_layers(project)
 
     if action in ("save", "save_and_open"):
@@ -146,6 +149,57 @@ def _apply_style(qgis_layer, style_spec: dict, band_idx: int = 1) -> None:
         qgis_layer.renderer().setContrastEnhancement(enhancement)
 
     qgis_layer.setOpacity(opacity)
+
+
+_processing_initialized = False
+
+
+def _init_processing() -> None:
+    global _processing_initialized
+    if _processing_initialized:
+        return
+    from qgis.analysis import QgsNativeAlgorithms
+    from qgis.core import QgsApplication
+    QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+    _processing_initialized = True
+
+
+def _run_operation(project, spec: dict) -> None:
+    _init_processing()
+    import processing as _processing  # QGIS processing module
+
+    algorithm = spec["algorithm"]
+    params = dict(spec["params"])
+    name = spec.get("name") or algorithm.split(":")[-1]
+    group = spec.get("group")
+    visible = spec.get("visible", True)
+
+    try:
+        result = _processing.run(algorithm, params)
+    except Exception as exc:
+        print(f"Processing algorithm {algorithm!r} failed: {exc}", file=sys.stderr)
+        return
+
+    output = result.get("OUTPUT")
+    if output is None:
+        print(f"Algorithm {algorithm!r} produced no OUTPUT", file=sys.stderr)
+        return
+
+    if isinstance(output, str):
+        _add_layer(project, {
+            "type": "Layer", "file": output, "name": name,
+            "group": group, "visible": visible, "crs": None, "overwrite_existing": False,
+        })
+    else:
+        output.setName(name)
+        add_to_root = group is None
+        project.addMapLayer(output, addToLegend=add_to_root)
+        if not add_to_root:
+            group_path = [group] if isinstance(group, str) else group
+            _get_or_create_group(project.layerTreeRoot(), group_path).addLayer(output)
+        node = project.layerTreeRoot().findLayer(output.id())
+        if node:
+            node.setItemVisibilityChecked(visible)
 
 
 def _zoom_to_all_layers(project) -> None:

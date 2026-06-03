@@ -10,7 +10,7 @@ import pytest
 
 from qgis_project._env import find_qgis_launcher
 from qgis_project._subprocess import SubprocessProject
-from qgis_project.layer import Layer, RasterLayer
+from qgis_project.layer import Layer, ProcessingOp, RasterLayer, WebLayer
 from qgis_project.style import RasterStyleBW
 
 
@@ -44,6 +44,23 @@ def test_remove_layer():
 
 def test_exit_is_noop():
     SubprocessProject().exit()
+
+
+def test_process_accumulates():
+    p = SubprocessProject()
+    p.process("native:buffer", {"INPUT": "a.shp", "DISTANCE": 100, "OUTPUT": "memory:"}, name="Buffered")
+    assert len(p._operations) == 1
+    assert isinstance(p._operations[0], ProcessingOp)
+    assert p._operations[0].algorithm == "native:buffer"
+    assert p._operations[0].name == "Buffered"
+
+
+def test_add_web_layer_accumulates():
+    p = SubprocessProject()
+    p.add_layer(WebLayer.osm(group="Background"))
+    assert len(p._layers) == 1
+    assert isinstance(p._layers[0], WebLayer)
+    assert p._layers[0].group == "Background"
 
 
 def test_print_layer_tree_runs(capsys):
@@ -85,5 +102,25 @@ def test_save_nested_groups(tmp_path, vector_file, sample_tif):
     p.add_layer(Layer(file=str(vector_file), group="admin"))
     p.add_layer(RasterLayer(file=str(sample_tif), group=["terrain", "raw"]))
     out = tmp_path / "groups.qgz"
+    p.save(str(out))
+    assert out.exists()
+
+
+@pytest.mark.launcher
+def test_save_with_processing_file_output(tmp_path, vector_file):
+    buf = tmp_path / "buffer.gpkg"
+    p = SubprocessProject()
+    p.process("native:buffer", {"INPUT": str(vector_file), "DISTANCE": 0.1, "OUTPUT": str(buf)}, name="Buffered")
+    out = tmp_path / "proc.qgz"
+    p.save(str(out))
+    assert out.exists()
+    assert buf.exists()
+
+
+@pytest.mark.launcher
+def test_save_with_processing_memory_output(tmp_path, vector_file):
+    p = SubprocessProject()
+    p.process("native:buffer", {"INPUT": str(vector_file), "DISTANCE": 0.1, "OUTPUT": "memory:"}, name="Buffered")
+    out = tmp_path / "proc_mem.qgz"
     p.save(str(out))
     assert out.exists()

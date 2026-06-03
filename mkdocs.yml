@@ -42,7 +42,7 @@ nav:
   - Standalone Scripts: standalone.md
   - API Reference:
     - Project: api/project.md
-    - Layers: api/layer.md
+    - Layers & Processing: api/layer.md
     - Styles: api/style.md
 
 markdown_extensions:

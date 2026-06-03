@@ -56,6 +56,28 @@ class _LayerMixin:
 
 @dataclass
 class Layer(_LayerMixin):
+    """A local file-based layer (vector or raster).
+
+    Parameters
+    ----------
+    file : str
+        Path to the layer file (``".shp"``, ``".geojson"``, ``".gpkg"``,
+        ``".tif"``, ``".tiff"``, ``".img"``).
+    crs : str or int or None
+        Override the layer CRS. Accepts an EPSG integer or authority string
+        (e.g. ``"EPSG:4326"``). If ``None``, the layer's native CRS is used.
+    visible : bool
+        Whether the layer is visible when the project opens.
+    group : str or list of str or None
+        Layer group path. A plain string places the layer in a top-level group;
+        a list creates a nested hierarchy, e.g. ``["terrain", "raw"]``.
+    name : str or None
+        Display name in the layer tree. Defaults to the file's basename.
+    overwrite_existing : bool
+        If ``True``, replace an existing layer at the same group path;
+        if ``False`` (default), skip silently.
+    """
+
     file: str
     crs: str | int|  None = None
     visible: bool = True
@@ -102,6 +124,35 @@ class RasterLayer(Layer):
         self.band_idx = band_idx
 
         # TODO: re-compute min/max? redraw? other re-computes?
+
+
+@dataclass
+class ProcessingOp:
+    """A QGIS Processing algorithm to run, whose result is added to the project as a layer.
+
+    Parameters
+    ----------
+    algorithm : str
+        QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+    params : dict
+        Algorithm parameters passed directly to ``processing.run()``.
+        Must include ``"INPUT"`` and, for most algorithms, ``"OUTPUT"``.
+        Set ``"OUTPUT"`` to ``"memory:"`` for an in-memory vector result,
+        or a file path (e.g. ``"/tmp/out.gpkg"``) for a persistent output.
+    name : str
+        Name for the result layer in the layer tree.
+        Defaults to the algorithm identifier tail (e.g. ``"buffer"``).
+    group : str or list of str or None
+        Layer group path, same syntax as :class:`Layer`.
+    visible : bool
+        Whether the result layer is visible when the project opens.
+    """
+
+    algorithm: str
+    params: dict
+    name: str = ""
+    group: str | list[str] | None = None
+    visible: bool = True
 
 
 @dataclass

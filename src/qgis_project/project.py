@@ -41,6 +41,7 @@ class Project:
 
         self._project = QgsProject.instance()
         self._canvas = QgsMapCanvas()
+        self._processing_initialized = False
         if file is not None:
             self._project.read(file)
 
@@ -114,6 +115,54 @@ class Project:
         if isinstance(layer, str):
             layer = Layer(layer)
         remove_layer_by_path(self._project, layer.get_path())
+
+
+    def process(self, algorithm: str, params: dict, name: str = "", group=None, visible: bool = True):
+        """Run a QGIS Processing algorithm and add the result to the project.
+
+        Parameters
+        ----------
+        algorithm : str
+            QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+        params : dict
+            Algorithm parameters. Must include ``"INPUT"`` and typically
+            ``"OUTPUT"``. Use ``"OUTPUT": "memory:"`` for in-memory vector
+            results, or a file path for persistent outputs.
+        name : str
+            Name for the result layer. Defaults to the algorithm tail.
+        group : str or list of str or None
+            Layer group path.
+        visible : bool
+            Whether the result layer is visible on project open.
+        """
+        self._ensure_processing()
+        import processing as _processing  # QGIS processing module; only available after initQgis
+        layer_name = name or algorithm.split(":")[-1]
+        result = _processing.run(algorithm, params)
+        output = result.get("OUTPUT")
+        if output is None:
+            logger.warning(f"Algorithm {algorithm!r} produced no OUTPUT")
+            return
+        if isinstance(output, str):
+            self._add_layer(Layer(output, name=layer_name, group=group, visible=visible))
+        else:
+            output.setName(layer_name)
+            add_to_root = group is None
+            self._project.addMapLayer(output, addToLegend=add_to_root)
+            if not add_to_root:
+                g = [group] if isinstance(group, str) else group
+                add_or_get_group(self._project, g).addLayer(output)
+            node = self._project.layerTreeRoot().findLayer(output.id())
+            if node:
+                node.setItemVisibilityChecked(visible)
+
+
+    def _ensure_processing(self):
+        if self._processing_initialized:
+            return
+        from qgis.analysis import QgsNativeAlgorithms
+        QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+        self._processing_initialized = True
 
 
     def center(self, layer: Layer | None = None):

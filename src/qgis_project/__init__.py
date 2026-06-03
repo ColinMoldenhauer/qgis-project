@@ -28,5 +28,5 @@ else:
                     "environment or install a standalone QGIS application."
                 )
 
-from .layer import Layer, RasterLayer, WebLayer
+from .layer import Layer, ProcessingOp, RasterLayer, WebLayer
 from .style import Style, RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiPseudocolor

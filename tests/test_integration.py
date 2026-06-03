@@ -10,6 +10,7 @@ qgis_project = pytest.importorskip("qgis_project", reason="qgis_project not impo
 Project = qgis_project.Project
 RasterLayer = qgis_project.RasterLayer
 RasterStyleBW = qgis_project.RasterStyleBW
+WebLayer = qgis_project.WebLayer
 
 
 pytestmark = pytest.mark.qgis
@@ -99,4 +100,55 @@ def test_layer_group(qgis_app, sample_tif):
     root = QgsProject.instance().layerTreeRoot()
     groups = [c for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
     assert any(g.name() == "terrain" for g in groups)
+    project.exit()
+
+
+def test_add_web_layer_osm(qgis_app):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(WebLayer.osm())
+    layers = QgsProject.instance().mapLayers()
+    assert len(layers) == 1
+    project.exit()
+
+
+def test_add_web_layer_group(qgis_app):
+    from qgis.core import QgsLayerTreeGroup, QgsProject
+    project = Project()
+    project.add_layer(WebLayer.osm(group="Background"))
+    root = QgsProject.instance().layerTreeRoot()
+    groups = [c for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
+    assert any(g.name() == "Background" for g in groups)
+    project.exit()
+
+
+def test_process_buffer_to_file(qgis_app, vector_file, tmp_path):
+    from qgis.core import QgsProject
+    project = Project()
+    out = str(tmp_path / "buffer.gpkg")
+    project.process("native:buffer", {"INPUT": str(vector_file), "DISTANCE": 0.1, "OUTPUT": out}, name="Buffered")
+    assert (tmp_path / "buffer.gpkg").exists()
+    layers = QgsProject.instance().mapLayers()
+    assert len(layers) == 1
+    project.exit()
+
+
+def test_process_buffer_memory(qgis_app, vector_file):
+    from qgis.core import QgsProject
+    project = Project()
+    project.process("native:buffer", {"INPUT": str(vector_file), "DISTANCE": 0.1, "OUTPUT": "memory:"}, name="Buffered")
+    layers = QgsProject.instance().mapLayers()
+    assert len(layers) == 1
+    project.exit()
+
+
+def test_process_result_in_group(qgis_app, vector_file, tmp_path):
+    from qgis.core import QgsLayerTreeGroup, QgsProject
+    project = Project()
+    out = str(tmp_path / "buf.gpkg")
+    project.process("native:buffer", {"INPUT": str(vector_file), "DISTANCE": 0.1, "OUTPUT": out},
+                    name="Buffered", group="Results")
+    root = QgsProject.instance().layerTreeRoot()
+    groups = [c for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
+    assert any(g.name() == "Results" for g in groups)
     project.exit()

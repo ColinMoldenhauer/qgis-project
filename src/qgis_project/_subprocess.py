@@ -9,6 +9,8 @@ _executor.py via the platform-specific QGIS Python launcher.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import os
 import subprocess
 import sys
@@ -17,7 +19,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .layer import Layer, WebLayer
+from .layer import Layer, ProcessingOp, WebLayer
 
 
 class SubprocessProject:
@@ -27,7 +29,8 @@ class SubprocessProject:
     """
 
     def __init__(self, file: str | None = None):
-        self._layers: list[Layer] = []
+        self._layers: list[Layer | WebLayer] = []
+        self._operations: list[ProcessingOp] = []
         if file is not None:
             logger.warning("Loading an existing project is not supported in subprocess mode.")
 
@@ -47,6 +50,32 @@ class SubprocessProject:
             layer = Layer(layer)
         target = layer.get_path()
         self._layers = [l for l in self._layers if l.get_path() != target]
+
+    def process(self, algorithm: str, params: dict, name: str = "", group=None, visible: bool = True) -> None:
+        """Queue a QGIS Processing algorithm; its result is added to the project on save.
+
+        Parameters
+        ----------
+        algorithm : str
+            QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+        params : dict
+            Algorithm parameters. Must include ``"INPUT"`` and typically
+            ``"OUTPUT"``. Use ``"OUTPUT": "memory:"`` for in-memory vector
+            results, or a file path for persistent outputs.
+        name : str
+            Name for the result layer. Defaults to the algorithm tail.
+        group : str or list of str or None
+            Layer group path.
+        visible : bool
+            Whether the result layer is visible on project open.
+        """
+        self._operations.append(ProcessingOp(
+            algorithm=algorithm,
+            params=params,
+            name=name,
+            group=group,
+            visible=visible,
+        ))
 
     # ------------------------------------------------------------------
     # Execution
@@ -85,6 +114,9 @@ class SubprocessProject:
     def center(self, layer=None) -> None:
         logger.warning("center() is not supported in subprocess mode.")
 
+    def zoom_to_all(self) -> None:
+        logger.warning("zoom_to_all() is not supported in subprocess mode; zoom is applied automatically on save.")
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
@@ -102,8 +134,12 @@ class SubprocessProject:
 
         executor = Path(__file__).parent / "_executor.py"
 
+        spec_dict = _spec.to_dict(self._layers, output, action)
+        if self._operations:
+            spec_dict["operations"] = [dataclasses.asdict(op) for op in self._operations]
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-            f.write(_spec.to_json(self._layers, output, action))
+            json.dump(spec_dict, f, indent=2)
             spec_path = f.name
 
         try:

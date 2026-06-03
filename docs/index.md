@@ -84,3 +84,58 @@ proj.print_layer_tree()     # print the layer tree to the terminal
 proj.open("output.qgz")    # save and launch QGIS
 proj.exit()                 # clean up without opening QGIS
 ```
+
+### Web layers
+
+Add tile services, WMS, or WFS sources with `WebLayer`. The built-in factory methods cover the most common cases:
+
+```python
+from qgis_project import WebLayer
+
+# OpenStreetMap XYZ tiles
+proj.add_layer(WebLayer.osm())
+proj.add_layer(WebLayer.osm(group="Background", visible=False))
+
+# Any XYZ tile service
+proj.add_layer(WebLayer.xyz(
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    name="OSM",
+))
+
+# OGC Web Map Service
+proj.add_layer(WebLayer.wms(
+    "https://ows.example.org/wms",
+    layers="elevation",
+    name="Elevation WMS",
+))
+
+# OGC Web Feature Service
+proj.add_layer(WebLayer.wfs(
+    "https://ows.example.org/wfs",
+    typename="ns:rivers",
+    name="Rivers",
+))
+```
+
+### Processing
+
+Run any QGIS Processing algorithm and add the result directly to the project. Works with both the in-process and subprocess strategies.
+
+```python
+# Buffer a vector layer — result saved to a file and added to the project
+proj.process(
+    "native:buffer",
+    {"INPUT": "roads.geojson", "DISTANCE": 100, "OUTPUT": "roads_buffered.gpkg"},
+    name="Roads (100 m buffer)",
+    group="Derived",
+)
+
+# In-memory result (vector only)
+proj.process(
+    "native:dissolve",
+    {"INPUT": "admin.geojson", "OUTPUT": "memory:"},
+    name="Admin Dissolved",
+)
+```
+
+Set `"OUTPUT"` to `"memory:"` for an in-memory layer (vectors only), or a file path for a persistent output. The result is automatically added to the project; no `add_layer()` call is needed.
