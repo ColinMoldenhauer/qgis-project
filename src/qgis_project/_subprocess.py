@@ -17,7 +17,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .layer import Layer
+from .layer import Layer, WebLayer
 
 
 class SubprocessProject:
@@ -35,7 +35,7 @@ class SubprocessProject:
     # Layer management
     # ------------------------------------------------------------------
 
-    def add_layer(self, layer: Layer | str) -> None:
+    def add_layer(self, layer: Layer | WebLayer | str) -> None:
         """Append a layer to the pending spec."""
         if isinstance(layer, str):
             layer = Layer(layer)

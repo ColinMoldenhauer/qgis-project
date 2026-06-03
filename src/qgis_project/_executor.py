@@ -65,24 +65,36 @@ def _add_layer(project, spec: dict) -> None:
         QgsVectorLayer,
     )
 
-    file = spec["file"]
-    name = spec.get("name") or os.path.basename(file)
+    layer_type = spec.get("type", "Layer")
     visible = spec.get("visible", True)
     crs = spec.get("crs")
     group = spec.get("group")
     overwrite = spec.get("overwrite_existing", False)
 
-    ext = os.path.splitext(file)[-1].lower()
-    if ext in (".shp", ".geojson", ".gpkg"):
-        qgis_layer = QgsVectorLayer(file, name, "ogr")
-    elif ext in (".tif", ".tiff", ".img"):
-        qgis_layer = QgsRasterLayer(file, name)
+    if layer_type == "WebLayer":
+        uri = spec["uri"]
+        provider = spec.get("provider", "wms")
+        name = spec.get("name") or "Web Layer"
+        if provider == "WFS":
+            qgis_layer = QgsVectorLayer(uri, name, "WFS")
+        else:
+            qgis_layer = QgsRasterLayer(uri, name, provider)
+        source = uri
     else:
-        print(f"Unsupported format: {file}", file=sys.stderr)
-        return
+        file = spec["file"]
+        name = spec.get("name") or os.path.basename(file)
+        ext = os.path.splitext(file)[-1].lower()
+        if ext in (".shp", ".geojson", ".gpkg"):
+            qgis_layer = QgsVectorLayer(file, name, "ogr")
+        elif ext in (".tif", ".tiff", ".img"):
+            qgis_layer = QgsRasterLayer(file, name)
+        else:
+            print(f"Unsupported format: {file}", file=sys.stderr)
+            return
+        source = file
 
     if not qgis_layer.isValid():
-        print(f"Failed to load layer: {file}", file=sys.stderr)
+        print(f"Failed to load layer: {source}", file=sys.stderr)
         return
 
     style_spec = spec.get("style")

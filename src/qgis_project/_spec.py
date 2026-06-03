@@ -54,7 +54,7 @@ def _layer_to_dict(layer) -> dict:
 
 
 def _layer_from_dict(d: dict):
-    from .layer import Layer, RasterLayer
+    from .layer import Layer, RasterLayer, WebLayer
     from .style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiPseudocolor
 
     _style_types = {
@@ -76,6 +76,8 @@ def _layer_from_dict(d: dict):
         return Layer(**d)
     if layer_type == "RasterLayer":
         return RasterLayer(**d)
+    if layer_type == "WebLayer":
+        return WebLayer(**d)
     raise ValueError(f"Unknown layer type: {layer_type!r}")
 
 

@@ -24,7 +24,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsMapCanvas
 
-from qgis_project.layer import Layer
+from qgis_project.layer import Layer, WebLayer
 from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, remove_layer_by_path
 
 
@@ -44,25 +44,32 @@ class Project:
         if file is not None:
             self._project.read(file)
 
-    def _add_layer(self, layer: Layer):
+    def _add_layer(self, layer: Layer | WebLayer):
         """Add a layer to the underlying project."""
-        if not os.path.exists(layer.file):
-            logger.error(f"File does not exist: {layer.file}")
-            return
-
-        ext = os.path.splitext(layer.file)[-1].lower()
-        if ext in ['.shp', '.geojson', '.gpkg']:
-            qgis_layer = QgsVectorLayer(layer.file, layer.get_layer_name(), "ogr")
-        elif ext in ['.tif', '.tiff', '.img']:
-            qgis_layer = QgsRasterLayer(layer.file, layer.get_layer_name())
+        if isinstance(layer, WebLayer):
+            if layer.provider == "WFS":
+                qgis_layer = QgsVectorLayer(layer.uri, layer.get_layer_name(), "WFS")
+            else:
+                qgis_layer = QgsRasterLayer(layer.uri, layer.get_layer_name(), layer.provider)
         else:
-            logger.error(f"Unsupported file format: {layer.file}")
-            return
+            if not os.path.exists(layer.file):
+                logger.error(f"File does not exist: {layer.file}")
+                return
+
+            ext = os.path.splitext(layer.file)[-1].lower()
+            if ext in ['.shp', '.geojson', '.gpkg']:
+                qgis_layer = QgsVectorLayer(layer.file, layer.get_layer_name(), "ogr")
+            elif ext in ['.tif', '.tiff', '.img']:
+                qgis_layer = QgsRasterLayer(layer.file, layer.get_layer_name())
+            else:
+                logger.error(f"Unsupported file format: {layer.file}")
+                return
 
         layer.set_qgis_layer(qgis_layer)
 
         if not qgis_layer.isValid():
-            logger.error(f"Failed to load layer: {layer.file}")
+            source = layer.uri if isinstance(layer, WebLayer) else layer.file
+            logger.error(f"Failed to load layer: {source}")
             return
 
         if hasattr(layer, 'style'):
@@ -95,8 +102,8 @@ class Project:
         logger.info(f"Added layer '{layer.get_layer_name()}' @ {group_str}")
 
 
-    def add_layer(self, layer: Layer | str):
-        """Add a layer to the project. Accepts a file path string or a Layer object."""
+    def add_layer(self, layer: Layer | WebLayer | str):
+        """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer."""
         if isinstance(layer, str):
             layer = Layer(layer)
         self._add_layer(layer)
