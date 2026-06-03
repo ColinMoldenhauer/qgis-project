@@ -27,8 +27,14 @@ from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_
 
 class Project:
     def __init__(self, file: str | None = None):
-        self._application = QgsApplication([], False)
-        self._application.initQgis()
+        existing = QgsApplication.instance()
+        if existing is None:
+            self._application = QgsApplication([], False)
+            self._application.initQgis()
+            self._owns_app = True
+        else:
+            self._application = existing
+            self._owns_app = False
 
         self._project = QgsProject.instance()
         self._canvas = QgsMapCanvas()
@@ -154,8 +160,14 @@ class Project:
 
 
     def exit(self):
-        """Clean up the QGIS application."""
-        self._application.exitQgis()
+        """Clean up the QGIS application.
+
+        Only tears down QgsApplication if this Project instance created it.
+        When multiple Project instances share one process (e.g. in a test
+        session), only the first one owns the application.
+        """
+        if self._owns_app:
+            self._application.exitQgis()
 
 
     def print_layer_tree(self):
