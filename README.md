@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo-text.png" alt="qgis-project" width="400"/>
+</p>
+
 # qgis-project
 
 [![PyPI version](https://img.shields.io/pypi/v/qgis-project)](https://pypi.org/project/qgis-project/)
