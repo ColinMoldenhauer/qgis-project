@@ -37,6 +37,8 @@ def main() -> None:
     for layer_spec in spec["layers"]:
         _add_layer(project, layer_spec)
 
+    _zoom_to_all_layers(project)
+
     if action in ("save", "save_and_open"):
         ok = project.write(output)
         if not ok:
@@ -132,6 +134,31 @@ def _apply_style(qgis_layer, style_spec: dict, band_idx: int = 1) -> None:
         qgis_layer.renderer().setContrastEnhancement(enhancement)
 
     qgis_layer.setOpacity(opacity)
+
+
+def _zoom_to_all_layers(project) -> None:
+    from qgis.core import QgsCoordinateTransform, QgsReferencedRectangle, QgsRectangle
+
+    project_crs = project.crs()
+    combined = QgsRectangle()
+
+    for node in project.layerTreeRoot().findLayers():
+        layer = node.layer()
+        if layer is None:
+            continue
+        try:
+            extent = layer.extent()
+            if layer.crs() != project_crs:
+                transform = QgsCoordinateTransform(layer.crs(), project_crs, project)
+                extent = transform.transformBoundingBox(extent)
+            combined.combineExtentWith(extent)
+        except Exception:
+            pass
+
+    if not combined.isNull():
+        project.viewSettings().setDefaultViewExtent(
+            QgsReferencedRectangle(combined, project_crs)
+        )
 
 
 def _get_or_create_group(root, path: list):

@@ -13,10 +13,13 @@ from loguru import logger
 from qgis.core import (
     QgsApplication,
     QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsLayerTreeGroup,
     QgsLayerTreeLayer,
     QgsProject,
     QgsRasterLayer,
+    QgsReferencedRectangle,
+    QgsRectangle,
     QgsVectorLayer,
 )
 from qgis.gui import QgsMapCanvas
@@ -108,15 +111,47 @@ class Project:
 
     def center(self, layer: Layer | None = None):
         """
-        Center the project canvas on a layer.
-        If no layer is provided, centers on the last layer in the tree.
+        Set the project's initial view extent to a single layer.
+        If no layer is provided, uses the last layer in the tree.
         """
         if layer is None:
             qgis_layer = get_layer_by_idx(self._project, -1)
         else:
             qgis_layer = layer.qgis_layer
 
-        self._canvas.setExtent(qgis_layer.extent())
+        extent = self._transform_extent_to_project_crs(qgis_layer.extent(), qgis_layer.crs())
+        self._set_view_extent(extent)
+
+
+    def zoom_to_all(self):
+        """Set the project's initial view extent to the union of all layers."""
+        combined = QgsRectangle()
+        for node in self._project.layerTreeRoot().findLayers():
+            qgis_layer = node.layer()
+            if qgis_layer is None:
+                continue
+            try:
+                extent = self._transform_extent_to_project_crs(qgis_layer.extent(), qgis_layer.crs())
+                combined.combineExtentWith(extent)
+            except Exception:
+                logger.warning(f"Could not transform extent for layer: {qgis_layer.name()}")
+        if not combined.isNull():
+            self._set_view_extent(combined)
+
+
+    def _transform_extent_to_project_crs(self, extent, layer_crs):
+        project_crs = self._project.crs()
+        if layer_crs == project_crs:
+            return extent
+        transform = QgsCoordinateTransform(layer_crs, project_crs, self._project)
+        return transform.transformBoundingBox(extent)
+
+
+    def _set_view_extent(self, extent):
+        project_crs = self._project.crs()
+        ref_extent = QgsReferencedRectangle(extent, project_crs)
+        self._project.viewSettings().setDefaultViewExtent(ref_extent)
+        self._canvas.setExtent(extent)
         self._canvas.refresh()
 
 
