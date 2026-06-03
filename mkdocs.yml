@@ -7,7 +7,7 @@ repo_name: ColinMoldenhauer/qgis-project
 theme:
   name: material
   logo: assets/logo-transparent.png
-  favicon: assets/logo.png
+  favicon: assets/logo-transparent.png
   palette:
     - scheme: default
       primary: green

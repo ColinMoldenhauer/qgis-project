@@ -18,6 +18,8 @@ A collection of ideas, development notes, etc.
 ### Strategy 2) Execution wrapper
 - no dependency issues
     - QGIS bundled python lives seperately from user env (conda, venv, etc.)
+    - would execute C:\Program Files\QGIS 3.28.0\bin\python-qgis.bat` (this windows)
+        - calls C:\Program Files\QGIS 3.28.0\bin\o4w_env.bat and other setup scripts
 - issue: need to install `qgis-project` into bundled python's site-packages
     - how?
 - issue: no handling of internal QGIS objects
