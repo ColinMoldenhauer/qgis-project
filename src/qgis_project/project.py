@@ -147,7 +147,7 @@ class Project:
             Whether the result layer is visible on project open.
         """
         self._ensure_processing()
-        import processing as _processing  # QGIS processing module; only available after initQgis
+        from qgis import processing as _processing
         layer_name = name or algorithm.split(":")[-1]
         result = _processing.run(algorithm, params)
         output = result.get("OUTPUT")

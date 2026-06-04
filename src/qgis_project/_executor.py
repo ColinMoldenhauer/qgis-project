@@ -214,7 +214,7 @@ def _init_processing() -> None:
 
 def _run_operation(project, spec: dict) -> None:
     _init_processing()
-    import processing as _processing  # QGIS processing module
+    from qgis import processing as _processing
 
     algorithm = spec["algorithm"]
     params = dict(spec["params"])
