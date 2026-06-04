@@ -147,10 +147,7 @@ class Project:
             Whether the result layer is visible on project open.
         """
         self._ensure_processing()
-        try:
-            from qgis import processing as _processing
-        except ImportError:
-            import processing as _processing  # type: ignore[no-redef]  # older QGIS
+        import processing as _processing  # QGIS processing plugin; plugins dir must be on sys.path
         layer_name = name or algorithm.split(":")[-1]
         result = _processing.run(algorithm, params)
         output = result.get("OUTPUT")

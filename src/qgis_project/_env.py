@@ -131,13 +131,23 @@ def setup_qgis_env() -> bool:
     Returns `True` if `import qgis` succeeds after this call, `False` if
     QGIS could not be located.
     """
+    system = platform.system()
+
     try:
         import qgis  # noqa: F401
+        # qgis is already importable, but the plugins directory (needed for
+        # 'import processing') may not be on sys.path yet — e.g. on Linux apt
+        # where python3-qgis is installed but the plugins path was never added.
+        # Run platform setup anyway; all _setup_* functions are idempotent.
+        if system == "Windows":
+            _setup_windows()
+        elif system == "Darwin":
+            _setup_macos()
+        else:
+            _setup_linux()
         return True
     except ImportError:
         pass
-
-    system = platform.system()
 
     if system == "Windows":
         _setup_windows()
