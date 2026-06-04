@@ -214,7 +214,10 @@ def _init_processing() -> None:
 
 def _run_operation(project, spec: dict) -> None:
     _init_processing()
-    from qgis import processing as _processing
+    try:
+        from qgis import processing as _processing
+    except ImportError:
+        import processing as _processing  # type: ignore[no-redef]  # older QGIS
 
     algorithm = spec["algorithm"]
     params = dict(spec["params"])
