@@ -47,6 +47,16 @@ def main() -> None:
 
     _zoom_to_all_layers(project)
 
+    for state in spec.get("group_states", []):
+        path = state.get("path")
+        expanded = state["expanded"]
+        if path is None:
+            _set_all_groups_expanded(project.layerTreeRoot(), expanded)
+        else:
+            group = _find_group(project, path)
+            if group is not None:
+                group.setExpanded(expanded)
+
     if action in ("save", "save_and_open"):
         ok = project.write(output)
         if not ok:
@@ -152,6 +162,40 @@ def _apply_style(qgis_layer, style_spec: dict, band_idx: int = 1) -> None:
         qgis_layer.setRenderer(renderer)
         qgis_layer.renderer().setContrastEnhancement(enhancement)
 
+    elif style_type == "RasterStyleSinglePseudocolor":
+        from qgis.core import (
+            QgsColorRampShader,
+            QgsRasterBandStats,
+            QgsRasterShader,
+            QgsSingleBandPseudoColorRenderer,
+            QgsStyle,
+        )
+
+        colormap = style_spec.get("colormap", "viridis")
+        vmin = style_spec.get("vmin")
+        vmax = style_spec.get("vmax")
+        if vmin is None:
+            vmin = qgis_layer.dataProvider().bandStatistics(band_idx, QgsRasterBandStats.Min).minimumValue
+        if vmax is None:
+            vmax = qgis_layer.dataProvider().bandStatistics(band_idx, QgsRasterBandStats.Max).maximumValue
+
+        style = QgsStyle.defaultStyle()
+        ramp_names = style.colorRampNames()
+        matched = next((n for n in ramp_names if n.lower() == colormap.lower()), None)
+        if matched is None:
+            print(f"Color ramp {colormap!r} not found; skipping pseudocolor style.", file=sys.stderr)
+        else:
+            ramp = style.colorRamp(matched)
+            color_shader = QgsColorRampShader(vmin, vmax, ramp)
+            color_shader.setColorRampType(QgsColorRampShader.Interpolated)
+            color_shader.classifyColorRamp()
+            raster_shader = QgsRasterShader()
+            raster_shader.setRasterShaderFunction(color_shader)
+            renderer = QgsSingleBandPseudoColorRenderer(qgis_layer.dataProvider(), band_idx, raster_shader)
+            renderer.setClassificationMin(vmin)
+            renderer.setClassificationMax(vmax)
+            qgis_layer.setRenderer(renderer)
+
     qgis_layer.setOpacity(opacity)
 
 
@@ -229,6 +273,27 @@ def _zoom_to_all_layers(project) -> None:
         project.viewSettings().setDefaultViewExtent(
             QgsReferencedRectangle(combined, project_crs)
         )
+
+
+def _find_group(project, path: list):
+    from qgis.core import QgsLayerTreeGroup
+    node = project.layerTreeRoot()
+    for name in path:
+        node = next(
+            (c for c in node.children() if isinstance(c, QgsLayerTreeGroup) and c.name() == name),
+            None,
+        )
+        if node is None:
+            return None
+    return node
+
+
+def _set_all_groups_expanded(node, expanded: bool) -> None:
+    from qgis.core import QgsLayerTreeGroup
+    for child in node.children():
+        if isinstance(child, QgsLayerTreeGroup):
+            child.setExpanded(expanded)
+            _set_all_groups_expanded(child, expanded)
 
 
 def _get_or_create_group(root, path: list):

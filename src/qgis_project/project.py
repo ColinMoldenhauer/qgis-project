@@ -288,9 +288,60 @@ class Project:
         _print_node(self._project.layerTreeRoot())
 
 
-    def collapse_group(self, *group):
-        # TODO
-        pass
+    def _find_group(self, path: list[str]):
+        """Return the QgsLayerTreeGroup at *path*, or None if not found."""
+        node = self._project.layerTreeRoot()
+        for name in path:
+            node = next(
+                (c for c in node.children() if isinstance(c, QgsLayerTreeGroup) and c.name() == name),
+                None,
+            )
+            if node is None:
+                return None
+        return node
+
+    def _set_all_groups_expanded(self, node, expanded: bool):
+        for child in node.children():
+            if isinstance(child, QgsLayerTreeGroup):
+                child.setExpanded(expanded)
+                self._set_all_groups_expanded(child, expanded)
+
+    def collapse_group(self, *path: str):
+        """Collapse a group in the layer tree.
+
+        Parameters
+        ----------
+        *path : str
+            Group name sequence, e.g. ``collapse_group("terrain")`` or
+            ``collapse_group("terrain", "raw")`` for a nested group.
+        """
+        group = self._find_group(list(path))
+        if group is not None:
+            group.setExpanded(False)
+        else:
+            logger.warning(f"Group not found: {list(path)}")
+
+    def expand_group(self, *path: str):
+        """Expand a group in the layer tree.
+
+        Parameters
+        ----------
+        *path : str
+            Group name sequence, same syntax as :meth:`collapse_group`.
+        """
+        group = self._find_group(list(path))
+        if group is not None:
+            group.setExpanded(True)
+        else:
+            logger.warning(f"Group not found: {list(path)}")
+
+    def collapse_all(self):
+        """Collapse all groups in the layer tree."""
+        self._set_all_groups_expanded(self._project.layerTreeRoot(), False)
+
+    def expand_all(self):
+        """Expand all groups in the layer tree."""
+        self._set_all_groups_expanded(self._project.layerTreeRoot(), True)
 
 
 def _set_setters(cls_target, cls_src):

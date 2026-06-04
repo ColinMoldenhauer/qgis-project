@@ -73,7 +73,6 @@ class RasterStyleBW(RasterStyle):
 
 
 
-# TODO: implement and test
 @dataclass
 class RasterStyleSinglePseudocolor(RasterStyle):
     """
@@ -82,12 +81,49 @@ class RasterStyleSinglePseudocolor(RasterStyle):
     Parameters
     ----------
     colormap : str
-        Name of the colormap to use for layer styling
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Viridis"``,
+        ``"Spectral"``, ``"RdYlBu"``. Run ``QgsStyle.defaultStyle().colorRampNames()``
+        to see all available names.
     """
     colormap: str = "viridis"
 
-    # TODO: check with CLIMERS PC
-    # def set_style(self): pass
+    def set_style(self, layer: "Layer"):
+        super().set_style(layer)
+        from qgis.core import (
+            QgsColorRampShader,
+            QgsRasterShader,
+            QgsSingleBandPseudoColorRenderer,
+            QgsStyle,
+        )
+
+        qgis_layer = layer.qgis_layer
+        band = getattr(layer, "band_idx", 1)
+        provider = qgis_layer.dataProvider()
+
+        vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
+        vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
+
+        style = QgsStyle.defaultStyle()
+        ramp_names = style.colorRampNames()
+        matched = next((n for n in ramp_names if n.lower() == self.colormap.lower()), None)
+        if matched is None:
+            raise ValueError(
+                f"Color ramp {self.colormap!r} not found in QGIS style library. "
+                f"Run QgsStyle.defaultStyle().colorRampNames() to list available names."
+            )
+        ramp = style.colorRamp(matched)
+
+        color_shader = QgsColorRampShader(vmin, vmax, ramp)
+        color_shader.setColorRampType(QgsColorRampShader.Interpolated)
+        color_shader.classifyColorRamp()
+
+        raster_shader = QgsRasterShader()
+        raster_shader.setRasterShaderFunction(color_shader)
+
+        renderer = QgsSingleBandPseudoColorRenderer(provider, band, raster_shader)
+        renderer.setClassificationMin(vmin)
+        renderer.setClassificationMax(vmax)
+        qgis_layer.setRenderer(renderer)
 
 
 # TODO: implement and test
@@ -102,6 +138,3 @@ class RasterStyleMultiPseudocolor(RasterStyle):
         Name of the colormap to use for layer styling
     """
     colormap: str = "viridis"
-
-    # TODO: check with CLIMERS PC
-    # def set_style(self): pass

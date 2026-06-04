@@ -33,6 +33,7 @@ class SubprocessProject:
         self._layers: list[Layer | WebLayer] = []
         self._operations: list[ProcessingOp] = []
         self._crs: str | None = None
+        self._group_states: list[dict] = []
         if crs is not None:
             self.set_crs(crs)
         if file is not None:
@@ -131,6 +132,29 @@ class SubprocessProject:
     def zoom_to_all(self) -> None:
         logger.warning("zoom_to_all() is not supported in subprocess mode; zoom is applied automatically on save.")
 
+    def collapse_group(self, *path: str) -> None:
+        """Queue a group collapse; applied when the project is saved.
+
+        Parameters
+        ----------
+        *path : str
+            Group name sequence, e.g. ``collapse_group("terrain")`` or
+            ``collapse_group("terrain", "raw")`` for a nested group.
+        """
+        self._group_states.append({"path": list(path), "expanded": False})
+
+    def expand_group(self, *path: str) -> None:
+        """Queue a group expand; applied when the project is saved."""
+        self._group_states.append({"path": list(path), "expanded": True})
+
+    def collapse_all(self) -> None:
+        """Queue collapse of all groups; applied when the project is saved."""
+        self._group_states.append({"path": None, "expanded": False})
+
+    def expand_all(self) -> None:
+        """Queue expand of all groups; applied when the project is saved."""
+        self._group_states.append({"path": None, "expanded": True})
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
@@ -153,6 +177,8 @@ class SubprocessProject:
             spec_dict["crs"] = self._crs
         if self._operations:
             spec_dict["operations"] = [dataclasses.asdict(op) for op in self._operations]
+        if self._group_states:
+            spec_dict["group_states"] = self._group_states
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
             json.dump(spec_dict, f, indent=2)
