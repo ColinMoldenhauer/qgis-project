@@ -171,11 +171,13 @@ def _setup_windows() -> None:
         if bundled:
             expected = f"Python{sys.version_info.major}{sys.version_info.minor}"
             if bundled[0].name != expected:
-                raise RuntimeError(
+                logger.warning(
                     f"Python version mismatch: QGIS bundles {bundled[0].name} "
-                    f"but you are running {expected}. Use python-qgis.bat or "
-                    f"install QGIS via conda-forge into an env with the matching version."
+                    f"but you are running {expected}. "
+                    f"In-process QGIS will not be available; "
+                    f"use python-qgis.bat or install QGIS via conda-forge."
                 )
+                return  # skip path setup; import qgis will fail → SubprocessProject fallback
             bundled_site = bundled[0] / "Lib" / "site-packages"
             if bundled_site.exists() and str(bundled_site) not in sys.path:
                 sys.path.append(str(bundled_site))

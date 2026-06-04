@@ -157,7 +157,8 @@ jobs:
       - name: Diagnose QGIS install
         run: |
           python -c "
-          import os; from pathlib import Path
+          import importlib.util, os
+          from pathlib import Path
           pf = Path(os.environ.get('PROGRAMFILES', r'C:\Program Files'))
           print('PROGRAMFILES:', pf)
           for d in sorted(pf.glob('QGIS*')):
@@ -168,10 +169,12 @@ jobs:
               bin_ = d / 'bin'
               if bin_.exists():
                   print('  bin/*.bat:', [x.name for x in bin_.glob('python*.bat')])
-          from qgis_project._env import find_qgis_prefix_path, find_qgis_launcher
-          try: print('prefix:', find_qgis_prefix_path())
+          spec = importlib.util.spec_from_file_location('_env', 'src/qgis_project/_env.py')
+          _env = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(_env)
+          try: print('prefix:', _env.find_qgis_prefix_path())
           except RuntimeError as e: print('prefix error:', e)
-          print('launcher:', find_qgis_launcher())
+          print('launcher:', _env.find_qgis_launcher())
           "
 
       - name: Run Strategy 2 tests (subprocess)
