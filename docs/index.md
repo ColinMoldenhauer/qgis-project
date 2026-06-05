@@ -158,3 +158,33 @@ proj.process(
 ```
 
 Set `"OUTPUT"` to `"memory:"` for an in-memory layer (vectors only), or a file path for a persistent output. The result is automatically added to the project; no `add_layer()` call is needed.
+
+#### Common algorithms
+
+The table below covers frequently used operations. Pass the algorithm ID as the first argument to `process()` and match the parameter names exactly.
+
+**Vector**
+
+| Algorithm ID | Operation | Key parameters |
+|---|---|---|
+| `native:buffer` | Buffer geometries | `INPUT`, `DISTANCE`, `OUTPUT` |
+| `native:dissolve` | Dissolve by field | `INPUT`, `FIELD`, `OUTPUT` |
+| `native:clip` | Clip by mask layer | `INPUT`, `OVERLAY`, `OUTPUT` |
+| `native:intersection` | Intersection of two layers | `INPUT`, `OVERLAY`, `OUTPUT` |
+| `native:difference` | Difference (erase) | `INPUT`, `OVERLAY`, `OUTPUT` |
+| `native:reprojectlayer` | Reproject to CRS | `INPUT`, `TARGET_CRS`, `OUTPUT` |
+| `native:centroid` | Polygon centroids | `INPUT`, `OUTPUT` |
+| `native:fixgeometries` | Repair invalid geometries | `INPUT`, `OUTPUT` |
+
+**Raster**
+
+| Algorithm ID | Operation | Key parameters |
+|---|---|---|
+| `gdal:warpreproject` | Reproject raster | `INPUT`, `TARGET_CRS`, `OUTPUT` |
+| `gdal:cliprasterbymasklayer` | Clip raster by vector mask | `INPUT`, `MASK`, `OUTPUT` |
+| `gdal:hillshade` | Hillshade from DEM | `INPUT`, `Z_FACTOR`, `OUTPUT` |
+| `gdal:slope` | Slope from DEM | `INPUT`, `OUTPUT` |
+| `gdal:aspect` | Aspect from DEM | `INPUT`, `OUTPUT` |
+| `gdal:rastercalculator` | Band math | `INPUT_A`, `BAND_A`, `FORMULA`, `OUTPUT` |
+
+To inspect all parameters for any algorithm, run `processing.algorithmHelp("native:buffer")` inside a QGIS Python console or after calling `project.process()` once to initialise the processing registry.
