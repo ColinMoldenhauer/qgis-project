@@ -159,8 +159,26 @@ class SubprocessProject:
     # Internal
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _extra_pythonpath() -> str:
+        """Return a PYTHONPATH fragment containing qgis_project and loguru.
+
+        Only these two directories are injected into the bundled Python's
+        environment — nothing else from the user's sys.path — to minimise
+        the risk of package conflicts with QGIS's own bundled libraries.
+        """
+        import qgis_project as _pkg
+        import loguru as _loguru
+
+        # parent.parent gives the directory that *contains* the package folder
+        # (i.e. site-packages or src/), not the package folder itself.
+        dirs = {
+            str(Path(_pkg.__file__).parent.parent),
+            str(Path(_loguru.__file__).parent.parent),
+        }
+        return os.pathsep.join(dirs)
+
     def _run(self, output: str, action: str) -> None:
-        from . import _spec
         from ._env import find_qgis_launcher
 
         launcher = find_qgis_launcher()
@@ -172,6 +190,7 @@ class SubprocessProject:
 
         executor = Path(__file__).parent / "_executor.py"
 
+        from . import _spec
         spec_dict = _spec.to_dict(self._layers, output, action)
         if self._crs is not None:
             spec_dict["crs"] = self._crs
@@ -184,6 +203,10 @@ class SubprocessProject:
             json.dump(spec_dict, f, indent=2)
             spec_path = f.name
 
+        env = os.environ.copy()
+        existing = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = self._extra_pythonpath() + (os.pathsep + existing if existing else "")
+
         try:
             # On Windows, .bat files must be invoked through cmd.exe.
             # On other platforms the launcher is a plain executable.
@@ -192,7 +215,7 @@ class SubprocessProject:
             else:
                 cmd = [launcher, str(executor), spec_path]
 
-            result = subprocess.run(cmd)
+            result = subprocess.run(cmd, env=env)
             if result.returncode != 0:
                 raise RuntimeError(f"QGIS executor exited with code {result.returncode}")
         finally:
