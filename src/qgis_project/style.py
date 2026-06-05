@@ -52,8 +52,6 @@ class RasterStyleBW(RasterStyle):
     """
 
     def set_style(self, layer: Layer):
-        super().set_style(layer)
-
         vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
         vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
 
@@ -70,6 +68,9 @@ class RasterStyleBW(RasterStyle):
         qgis_layer.setRenderer(renderer)
         qgis_layer.renderer().setContrastEnhancement(enhancement)
         qgis_layer.triggerRepaint()  # TODO: necessary?
+        # Apply opacity after setRenderer() — raster opacity lives on the renderer,
+        # so calling super before setRenderer() would be overwritten by the new renderer.
+        super().set_style(layer)
 
 
 
@@ -88,7 +89,6 @@ class RasterStyleSinglePseudocolor(RasterStyle):
     colormap: str = "viridis"
 
     def set_style(self, layer: "Layer"):
-        super().set_style(layer)
         from qgis.core import (
             QgsColorRampShader,
             QgsRasterShader,
@@ -124,6 +124,7 @@ class RasterStyleSinglePseudocolor(RasterStyle):
         renderer.setClassificationMin(vmin)
         renderer.setClassificationMax(vmax)
         qgis_layer.setRenderer(renderer)
+        super().set_style(layer)
 
 
 # TODO: implement and test
