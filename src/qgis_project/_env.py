@@ -192,10 +192,10 @@ def _setup_windows() -> None:
             if bundled_site.exists() and str(bundled_site) not in sys.path:
                 sys.path.append(str(bundled_site))
 
-    python_path = prefix / "python"
-    if python_path.exists() and str(python_path) not in sys.path:
-        sys.path.insert(0, str(python_path))
-        logger.debug(f"Added to sys.path: {python_path}")
+    for python_path in [prefix / "python", prefix / "python" / "plugins"]:
+        if python_path.exists() and str(python_path) not in sys.path:
+            sys.path.insert(0, str(python_path))
+            logger.debug(f"Added to sys.path: {python_path}")
 
     # Register DLL directories and pre-load key libraries.
     # os.add_dll_directory() only covers .pyd loading by Python's import

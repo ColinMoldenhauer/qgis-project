@@ -126,6 +126,12 @@ class SubprocessProject:
                 indent = "  " * len(path)
                 print(f"{indent}{layer.get_layer_name()}")
 
+    def snapshot(self, **_) -> None:
+        raise NotImplementedError(
+            "snapshot() requires an in-process QGIS (Strategy 1 or 3). "
+            "In subprocess mode there is no live canvas to capture."
+        )
+
     def center(self, layer=None) -> None:
         logger.warning("center() is not supported in subprocess mode.")
 

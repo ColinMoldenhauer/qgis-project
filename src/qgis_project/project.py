@@ -22,7 +22,7 @@ from qgis.core import (
     QgsRectangle,
     QgsVectorLayer,
 )
-from qgis.gui import QgsMapCanvas
+from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsMapCanvas
 
 from qgis_project.layer import Layer, WebLayer
 from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, normalize_crs, remove_layer_by_path
@@ -41,6 +41,12 @@ class Project:
 
         self._project = QgsProject.instance()
         self._canvas = QgsMapCanvas()
+        # Bridge keeps the canvas in sync with the project layer tree so that
+        # layers added via addMapLayer() appear on the canvas automatically.
+        self._bridge = QgsLayerTreeMapCanvasBridge(
+            self._project.layerTreeRoot(), self._canvas
+        )
+        self._canvas.resize(800, 600)
         self._processing_initialized = False
         if file is not None:
             self._project.read(file)
@@ -249,6 +255,55 @@ class Project:
             )
         subprocess.Popen([qgis_bin, file])
         logger.info(f"Opened QGIS with project: {file}")
+
+
+    def snapshot(self, path: str | None = None):
+        """Capture the current canvas as a still image.
+
+        Behaviour depends on context:
+
+        - **Jupyter notebook**: returns an ``IPython.display.Image`` that
+          renders inline in the cell output.
+        - **path given**: saves a PNG to that path and returns a ``Path``.
+        - **Script (no Jupyter, no path)**: saves to a temporary file and
+          returns its ``Path``.
+
+        Parameters
+        ----------
+        path : str or None
+            Destination file path.  If ``None``, auto-detected from context.
+        """
+        from pathlib import Path as _Path
+        from qgis.PyQt.QtCore import QBuffer, QIODevice
+        from qgis.PyQt.QtWidgets import QApplication
+
+        QApplication.processEvents()
+
+        buf = QBuffer()
+        buf.open(QIODevice.WriteOnly)
+        self._canvas.grab().toImage().save(buf, "PNG")
+        buf.close()
+        png = bytes(buf.data())
+
+        if path is not None:
+            _Path(path).write_bytes(png)
+            return _Path(path)
+
+        # Jupyter: display inline
+        try:
+            from IPython import get_ipython
+            if get_ipython() is not None:
+                from IPython.display import Image
+                return Image(data=png)
+        except ImportError:
+            pass
+
+        # Script fallback: write to a temp file and return path
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.write(png)
+        tmp.close()
+        return _Path(tmp.name)
 
 
     def save(self, file: str):
