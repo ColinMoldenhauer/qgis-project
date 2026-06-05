@@ -93,6 +93,42 @@ def test_add_vector_layer(qgis_app, vector_file):
     project.exit()
 
 
+# ---------------------------------------------------------------------------
+# Format coverage — one test per common file format
+# ---------------------------------------------------------------------------
+
+def test_load_gpkg(qgis_app, gpkg_file):
+    project = Project()
+    project.add_layer(str(gpkg_file))
+    from qgis.core import QgsProject
+    assert len(QgsProject.instance().mapLayers()) == 1
+    project.exit()
+
+
+def test_load_shp(qgis_app, shp_file):
+    project = Project()
+    project.add_layer(str(shp_file))
+    from qgis.core import QgsProject
+    assert len(QgsProject.instance().mapLayers()) == 1
+    project.exit()
+
+
+def test_load_kml(qgis_app, kml_file):
+    project = Project()
+    project.add_layer(str(kml_file))
+    from qgis.core import QgsProject
+    assert len(QgsProject.instance().mapLayers()) == 1
+    project.exit()
+
+
+def test_load_flatgeobuf(qgis_app, flatgeobuf_file):
+    project = Project()
+    project.add_layer(str(flatgeobuf_file))
+    from qgis.core import QgsProject
+    assert len(QgsProject.instance().mapLayers()) == 1
+    project.exit()
+
+
 def test_layer_group(qgis_app, sample_tif):
     from qgis.core import QgsLayerTreeGroup, QgsProject
     project = Project()

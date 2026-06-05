@@ -101,13 +101,11 @@ def _add_layer(project, spec: dict) -> None:
     else:
         file = spec["file"]
         name = spec.get("name") or os.path.basename(file)
-        ext = os.path.splitext(file)[-1].lower()
-        if ext in (".shp", ".geojson", ".gpkg"):
-            qgis_layer = QgsVectorLayer(file, name, "ogr")
-        elif ext in (".tif", ".tiff", ".img"):
+        qgis_layer = QgsVectorLayer(file, name, "ogr")
+        if not qgis_layer.isValid():
             qgis_layer = QgsRasterLayer(file, name)
-        else:
-            print(f"Unsupported format: {file}", file=sys.stderr)
+        if not qgis_layer.isValid():
+            print(f"Unsupported or unreadable file: {file}", file=sys.stderr)
             return
         source = file
 

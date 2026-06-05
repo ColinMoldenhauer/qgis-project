@@ -59,13 +59,14 @@ class Project:
                 logger.error(f"File does not exist: {layer.file}")
                 return
 
-            ext = os.path.splitext(layer.file)[-1].lower()
-            if ext in ['.shp', '.geojson', '.gpkg']:
-                qgis_layer = QgsVectorLayer(layer.file, layer.get_layer_name(), "ogr")
-            elif ext in ['.tif', '.tiff', '.img']:
-                qgis_layer = QgsRasterLayer(layer.file, layer.get_layer_name())
-            else:
-                logger.error(f"Unsupported file format: {layer.file}")
+            # Try vector first, then raster — delegates format detection to
+            # GDAL/OGR so any format they support works without an extension list.
+            name = layer.get_layer_name()
+            qgis_layer = QgsVectorLayer(layer.file, name, "ogr")
+            if not qgis_layer.isValid():
+                qgis_layer = QgsRasterLayer(layer.file, name)
+            if not qgis_layer.isValid():
+                logger.error(f"Unsupported or unreadable file: {layer.file}")
                 return
 
         layer.set_qgis_layer(qgis_layer)

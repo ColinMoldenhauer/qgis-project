@@ -90,29 +90,132 @@ def sample_tif(tmp_path_factory):
     return path
 
 
+_GEOJSON_FC = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"name": "A"},
+            "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+        },
+        {
+            "type": "Feature",
+            "properties": {"name": "B"},
+            "geometry": {"type": "Polygon", "coordinates": [[[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]]},
+        },
+    ],
+}
+
+
 @pytest.fixture(scope="session")
 def vector_file(tmp_path_factory):
     """A minimal two-feature GeoJSON polygon file."""
     path = tmp_path_factory.mktemp("data") / "regions.geojson"
-    path.write_text(json.dumps({
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "properties": {"name": "A"},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
-                },
-            },
-            {
-                "type": "Feature",
-                "properties": {"name": "B"},
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]],
-                },
-            },
-        ],
-    }))
+    path.write_text(json.dumps(_GEOJSON_FC))
+    return path
+
+
+@pytest.fixture(scope="session")
+def gpkg_file(tmp_path_factory):
+    """A minimal GeoPackage vector file."""
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
+    try:
+        from osgeo import ogr, osr
+    except ImportError:
+        pytest.skip("GDAL/OGR not available")
+    path = tmp_path_factory.mktemp("data") / "regions.gpkg"
+    driver = ogr.GetDriverByName("GPKG")
+    ds = driver.CreateDataSource(str(path))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    layer = ds.CreateLayer("regions", srs, ogr.wkbPolygon)
+    layer.CreateField(ogr.FieldDefn("name", ogr.OFTString))
+    for coords, name in [([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]], "A"),
+                         ([[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]], "B")]:
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        for x, y in coords:
+            ring.AddPoint(x, y)
+        poly = ogr.Geometry(ogr.wkbPolygon)
+        poly.AddGeometry(ring)
+        feat = ogr.Feature(layer.GetLayerDefn())
+        feat.SetGeometry(poly)
+        feat.SetField("name", name)
+        layer.CreateFeature(feat)
+    ds = None
+    return path
+
+
+@pytest.fixture(scope="session")
+def shp_file(tmp_path_factory):
+    """A minimal Shapefile."""
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
+    try:
+        from osgeo import ogr, osr
+    except ImportError:
+        pytest.skip("GDAL/OGR not available")
+    path = tmp_path_factory.mktemp("data") / "regions.shp"
+    driver = ogr.GetDriverByName("ESRI Shapefile")
+    ds = driver.CreateDataSource(str(path))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    lyr = ds.CreateLayer("regions", srs, ogr.wkbPolygon)
+    for coords in [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]],
+                   [[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]]:
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        for x, y in coords:
+            ring.AddPoint(x, y)
+        poly = ogr.Geometry(ogr.wkbPolygon)
+        poly.AddGeometry(ring)
+        feat = ogr.Feature(lyr.GetLayerDefn())
+        feat.SetGeometry(poly)
+        lyr.CreateFeature(feat)
+    ds = None
+    return path
+
+
+@pytest.fixture(scope="session")
+def kml_file(tmp_path_factory):
+    """A minimal KML file."""
+    path = tmp_path_factory.mktemp("data") / "regions.kml"
+    path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<kml xmlns="http://www.opengis.net/kml/2.2">'
+        "<Document>"
+        "<Placemark><name>A</name>"
+        "<Polygon><outerBoundaryIs><LinearRing>"
+        "<coordinates>0,0 1,0 1,1 0,1 0,0</coordinates>"
+        "</LinearRing></outerBoundaryIs></Polygon></Placemark>"
+        "</Document></kml>"
+    )
+    return path
+
+
+@pytest.fixture(scope="session")
+def flatgeobuf_file(tmp_path_factory):
+    """A minimal FlatGeobuf file created via OGR."""
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
+    try:
+        from osgeo import ogr, osr
+    except ImportError:
+        pytest.skip("GDAL/OGR not available")
+    driver = ogr.GetDriverByName("FlatGeobuf")
+    if driver is None:
+        pytest.skip("FlatGeobuf driver not available in this GDAL build")
+    path = tmp_path_factory.mktemp("data") / "regions.fgb"
+    ds = driver.CreateDataSource(str(path))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    lyr = ds.CreateLayer("regions", srs, ogr.wkbPolygon)
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    for x, y in [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]:
+        ring.AddPoint(x, y)
+    poly = ogr.Geometry(ogr.wkbPolygon)
+    poly.AddGeometry(ring)
+    feat = ogr.Feature(lyr.GetLayerDefn())
+    feat.SetGeometry(poly)
+    lyr.CreateFeature(feat)
+    ds = None
     return path
