@@ -83,6 +83,74 @@ def _make_vector(path: Path) -> Path:
     return path
 
 
+def _make_vector_ogr(path: Path, driver_name: str, x_offset: float = 0.0) -> Path | None:
+    """Write two polygon features via OGR at *x_offset* degrees from the base area.
+    Returns None if the driver is unavailable."""
+    from osgeo import ogr, osr
+    driver = ogr.GetDriverByName(driver_name)
+    if driver is None:
+        print(f"    [skip] OGR driver '{driver_name}' not available")
+        return None
+    if path.exists():
+        driver.DeleteDataSource(str(path))
+    ds = driver.CreateDataSource(str(path))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    lyr = ds.CreateLayer("regions", srs, ogr.wkbPolygon)
+    lyr.CreateField(ogr.FieldDefn("name", ogr.OFTString))
+    for coords, name in [
+        ([[10.0 + x_offset, 47.5], [10.5 + x_offset, 47.5],
+          [10.5 + x_offset, 48.0], [10.0 + x_offset, 48.0], [10.0 + x_offset, 47.5]], "A"),
+        ([[10.5 + x_offset, 47.5], [11.0 + x_offset, 47.5],
+          [11.0 + x_offset, 48.0], [10.5 + x_offset, 48.0], [10.5 + x_offset, 47.5]], "B"),
+    ]:
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        for x, y in coords:
+            ring.AddPoint(x, y)
+        poly = ogr.Geometry(ogr.wkbPolygon)
+        poly.AddGeometry(ring)
+        feat = ogr.Feature(lyr.GetLayerDefn())
+        feat.SetGeometry(poly)
+        feat.SetField("name", name)
+        lyr.CreateFeature(feat)
+    ds = None
+    return path
+
+
+def _make_raster_format(src_tif: Path, out_path: Path, driver_name: str,
+                        creation_opts: list[str] | None = None) -> Path | None:
+    """Convert *src_tif* to another raster format via GDAL. Returns None if unavailable."""
+    from osgeo import gdal
+    driver = gdal.GetDriverByName(driver_name)
+    if driver is None:
+        print(f"    [skip] GDAL driver '{driver_name}' not available")
+        return None
+    src = gdal.Open(str(src_tif))
+    opts = gdal.TranslateOptions(format=driver_name, creationOptions=creation_opts or [])
+    gdal.Translate(str(out_path), src, options=opts)
+    src = None
+    return out_path
+
+
+def _make_vrt(src_tif: Path, out_path: Path) -> Path:
+    """Create a VRT that wraps *src_tif*."""
+    from osgeo import gdal
+    gdal.BuildVRT(str(out_path), [str(src_tif)])
+    return out_path
+
+
+def _make_asc(src_tif: Path, out_path: Path) -> Path | None:
+    return _make_raster_format(src_tif, out_path, "AAIGrid")
+
+
+def _make_img(src_tif: Path, out_path: Path) -> Path | None:
+    return _make_raster_format(src_tif, out_path, "HFA")
+
+
+def _make_netcdf(src_tif: Path, out_path: Path) -> Path | None:
+    return _make_raster_format(src_tif, out_path, "netCDF")
+
+
 def _ensure_data(out_dir: Path):
     dem    = out_dir / "dem.tif"
     slope  = out_dir / "slope.tif"
@@ -484,6 +552,80 @@ def t16_combined(dem, slope, vector, out_dir, do_open=False) -> Path:
     proj.expand_group("Background")
     proj.zoom_to_all()
     out = out_dir / "16_combined.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 17 – Vector format coverage (side-by-side in groups)
+# ---------------------------------------------------------------------------
+
+@test
+def t17_vector_formats(_dem, _slope, _vector, out_dir, do_open=False) -> Path:
+    """One layer per common vector format, each in its own group.
+    Expected: five groups (GeoJSON, GeoPackage, Shapefile, KML, FlatGeobuf),
+    each containing the same two polygons.  Toggle groups to compare.
+    """
+    from qgis_project import Project
+
+    proj = Project()
+
+    formats = [
+        ("GeoJSON",     "regions_fmt.geojson", "GeoJSON"),
+        ("GeoPackage",  "regions_fmt.gpkg",    "GPKG"),
+        ("Shapefile",   "regions_fmt.shp",     "ESRI Shapefile"),
+        ("KML",         "regions_fmt.kml",     "KML"),
+        ("FlatGeobuf",  "regions_fmt.fgb",     "FlatGeobuf"),
+    ]
+
+    for group_name, filename, driver in formats:
+        path = _make_vector_ogr(out_dir / filename, driver)
+        if path is not None:
+            proj.add_layer(str(path), group=group_name)
+
+    out = out_dir / "17_vector_formats.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 18 – Raster format coverage (side-by-side in groups)
+# ---------------------------------------------------------------------------
+
+@test
+def t18_raster_formats(dem, _slope, _vector, out_dir, do_open=False) -> Path:
+    """One layer per common raster format derived from the same DEM.
+    Expected: GeoTIFF, VRT, ASCII Grid, ERDAS Imagine (.img), and NetCDF
+    (where the GDAL driver is available) all rendering identically.
+    Formats whose driver is missing are skipped with a console note.
+    """
+    from qgis_project import Project
+
+    proj = Project()
+
+    # GeoTIFF — always available, use as reference
+    proj.add_layer(str(dem), group="GeoTIFF")
+
+    # VRT — always available, virtual wrapper around the GeoTIFF
+    vrt = _make_vrt(dem, out_dir / "dem.vrt")
+    proj.add_layer(str(vrt), group="VRT")
+
+    # ASCII Grid (.asc) — always available
+    asc = _make_asc(dem, out_dir / "dem.asc")
+    if asc:
+        proj.add_layer(str(asc), group="ASCII Grid (.asc)")
+
+    # ERDAS Imagine (.img) — almost always available
+    img = _make_img(dem, out_dir / "dem.img")
+    if img:
+        proj.add_layer(str(img), group="ERDAS Imagine (.img)")
+
+    # NetCDF — usually available; requires netCDF GDAL driver
+    nc = _make_netcdf(dem, out_dir / "dem.nc")
+    if nc:
+        proj.add_layer(str(nc), group="NetCDF (.nc)")
+
+    out = out_dir / "18_raster_formats.qgz"
     _finish(proj, out, do_open)
     return out
 
