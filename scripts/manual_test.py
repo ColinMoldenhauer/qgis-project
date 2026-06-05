@@ -634,7 +634,7 @@ def t18_raster_formats(dem, _slope, _vector, out_dir, do_open=False) -> Path:
 # Main
 # ---------------------------------------------------------------------------
 
-_DEFAULT_OUT = Path(__file__).parent.parent / "test_out"
+_DEFAULT_OUT = Path(__file__).parent / "test_out"
 
 
 def main() -> None:
