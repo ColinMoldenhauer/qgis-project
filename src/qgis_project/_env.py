@@ -176,6 +176,11 @@ def _setup_windows() -> None:
     is_conda = bool(conda_prefix and str(prefix).startswith(conda_prefix))
     root = prefix if is_conda else prefix.parent.parent
 
+    if is_conda:
+        logger.debug(f"Strategy 3 (conda-forge): QGIS prefix {prefix}")
+    else:
+        logger.debug(f"Strategy 1/2 (standalone): QGIS root {root}, prefix {prefix}")
+
     if not is_conda:
         bundled = sorted((root / "apps").glob("Python3*"), reverse=True)
         if bundled:
@@ -184,10 +189,11 @@ def _setup_windows() -> None:
                 logger.warning(
                     f"Python version mismatch: QGIS bundles {bundled[0].name} "
                     f"but you are running {expected}. "
-                    f"In-process QGIS will not be available; "
-                    f"use python-qgis.bat or install QGIS via conda-forge."
+                    f"In-process QGIS (Strategy 1) will not be available; "
+                    f"falling back to subprocess launcher (Strategy 2) if found."
                 )
                 return  # skip path setup; import qgis will fail → SubprocessProject fallback
+            logger.debug(f"Bundled Python matches: {bundled[0].name}")
             bundled_site = bundled[0] / "Lib" / "site-packages"
             if bundled_site.exists() and str(bundled_site) not in sys.path:
                 sys.path.append(str(bundled_site))
@@ -221,6 +227,8 @@ def _setup_windows() -> None:
                     pass
 
     prefix_fwd = str(prefix).replace("\\", "/")
+    strategy = "3 (conda-forge)" if is_conda else "1 (standalone, in-process)"
+    logger.debug(f"Windows env configured — Strategy {strategy}, QGIS_PREFIX_PATH={prefix_fwd}")
     os.environ.setdefault("QGIS_PREFIX_PATH", prefix_fwd)
     os.environ.setdefault("GDAL_FILENAME_IS_UTF8", "YES")
     os.environ.setdefault("VSI_CACHE", "TRUE")
