@@ -356,13 +356,15 @@ def t08_web_layers(dem, slope, vector, out_dir, do_open=False) -> Path:
 
 @test
 def t09_processing(dem, slope, vector, out_dir, do_open=False) -> Path:
-    """QGIS Processing: buffer to file and to memory.
-    Expected: three layers — original vector, 'Buffer (file)' from a .gpkg,
-    'Buffer (memory)' as in-memory. Both buffers in a 'Processing' group.
+    """QGIS Processing: vector buffer + raster warp.
+    Expected: four layers — original vector; 'Buffer (file)' and 'Buffer (auto)'
+    (both .gpkg, the latter auto-saved from memory:) in a 'Processing' group;
+    'DEM (Web Mercator)' raster reprojected to EPSG:3857 in 'Raster Processing'.
     """
     from qgis_project import Project
 
     buf_file = str(out_dir / "buffer.gpkg")
+    warp_file = str(out_dir / "dem_3857.tif")
     proj = Project()
     proj.add_layer(str(vector))
     proj.process(
@@ -377,7 +379,16 @@ def t09_processing(dem, slope, vector, out_dir, do_open=False) -> Path:
         {"INPUT": str(vector), "DISTANCE": 0.1, "SEGMENTS": 5,
          "END_CAP_STYLE": 0, "JOIN_STYLE": 0, "MITER_LIMIT": 2,
          "DISSOLVE": False, "OUTPUT": "memory:"},
-        name="Buffer (memory)", group="Processing",
+        name="Buffer (auto)", group="Processing",
+    )
+    proj.process(
+        "gdal:warpreproject",
+        {"INPUT": str(dem), "SOURCE_CRS": "EPSG:4326", "TARGET_CRS": "EPSG:3857",
+         "RESAMPLING": 0, "NODATA": None, "TARGET_RESOLUTION": None,
+         "OPTIONS": "", "DATA_TYPE": 0, "TARGET_EXTENT": None,
+         "TARGET_EXTENT_CRS": None, "MULTITHREADING": False, "EXTRA": "",
+         "OUTPUT": warp_file},
+        name="DEM (Web Mercator)", group="Raster Processing",
     )
     out = out_dir / "09_processing.qgz"
     _finish(proj, out, do_open)

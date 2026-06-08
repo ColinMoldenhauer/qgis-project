@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 
 from loguru import logger
 from qgis.core import (
@@ -29,7 +30,8 @@ from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_
 
 
 class Project:
-    def __init__(self, file: str | None = None, crs: str | int | None = None):
+    def __init__(self, file: str | None = None, crs: str | int | None = None,
+                 data_dir: str | Path | None = None):
         existing = QgsApplication.instance()
         if existing is None:
             self._application = QgsApplication([], False)
@@ -48,6 +50,8 @@ class Project:
         )
         self._canvas.resize(800, 600)
         self._processing_initialized = False
+        self._data_dir: Path | None = Path(data_dir) if data_dir is not None else None
+        self._auto_output_idx = 0
         if file is not None:
             self._project.read(file)
         if crs is not None:
@@ -96,14 +100,15 @@ class Project:
         add_to_root = layer.group is None
         self._project.addMapLayer(qgis_layer, addToLegend=add_to_root)
 
-        if not add_to_root:
+        if add_to_root:
+            layer_node = self._project.layerTreeRoot().findLayer(qgis_layer.id())
+        else:
             group = add_or_get_group(self._project, layer.get_path()[:-1])
-            group.addLayer(qgis_layer)
+            layer_node = group.addLayer(qgis_layer)
 
         if layer.crs is not None:
             qgis_layer.setCrs(QgsCoordinateReferenceSystem(normalize_crs(layer.crs)))
 
-        layer_node = self._project.layerTreeRoot().findLayer(qgis_layer.id())
         layer_node.setItemVisibilityChecked(layer.visible)
 
         group_str = '/'.join(['/ROOT', *layer.get_path()[:-1]]) if layer.group else '/ROOT'
@@ -144,8 +149,9 @@ class Project:
             QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
         params : dict
             Algorithm parameters. Must include ``"INPUT"`` and typically
-            ``"OUTPUT"``. Use ``"OUTPUT": "memory:"`` for in-memory vector
-            results, or a file path for persistent outputs.
+            ``"OUTPUT"``. Pass a file path for persistent outputs. ``"memory:"``
+            is silently redirected to a temporary GeoPackage so the layer
+            survives project save/load.
         name : str
             Name for the result layer. Defaults to the algorithm tail.
         group : str or list of str or None
@@ -155,7 +161,23 @@ class Project:
         """
         self._ensure_processing()
         import processing as _processing  # QGIS processing plugin; plugins dir must be on sys.path
+
         layer_name = name or algorithm.split(":")[-1]
+
+        # Memory layers don't survive project save/load — redirect to a persistent file.
+        params = dict(params)
+        output_val = params.get("OUTPUT", "")
+        if isinstance(output_val, str) and output_val.startswith("memory:"):
+            self._auto_output_idx += 1
+            slug = f"proc_{self._auto_output_idx:02d}.gpkg"
+            if self._data_dir is not None:
+                self._data_dir.mkdir(parents=True, exist_ok=True)
+                auto_path = str(self._data_dir / slug)
+            else:
+                auto_path = os.path.join(tempfile.mkdtemp(), slug)
+            params["OUTPUT"] = auto_path
+            logger.debug(f"Redirected memory output for '{layer_name}' to {auto_path}")
+
         result = _processing.run(algorithm, params)
         output = result.get("OUTPUT")
         if output is None:
@@ -167,19 +189,22 @@ class Project:
             output.setName(layer_name)
             add_to_root = group is None
             self._project.addMapLayer(output, addToLegend=add_to_root)
-            if not add_to_root:
+            if add_to_root:
+                node = self._project.layerTreeRoot().findLayer(output.id())
+            else:
                 g = [group] if isinstance(group, str) else group
-                add_or_get_group(self._project, g).addLayer(output)
-            node = self._project.layerTreeRoot().findLayer(output.id())
+                node = add_or_get_group(self._project, g).addLayer(output)
             if node:
                 node.setItemVisibilityChecked(visible)
+            else:
+                logger.warning(f"Could not find layer tree node for processing result '{layer_name}'")
 
 
     def _ensure_processing(self):
         if self._processing_initialized:
             return
-        from qgis.analysis import QgsNativeAlgorithms
-        QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+        from processing.core.Processing import Processing
+        Processing.initialize()
         self._processing_initialized = True
 
 
@@ -308,6 +333,9 @@ class Project:
 
     def save(self, file: str):
         """Save the project to a .qgz file."""
+        p = Path(file)
+        if self._data_dir is None:
+            self._data_dir = p.parent / (p.stem + "_data")
         ok = self._project.write(file)
         if not ok:
             raise RuntimeError(
