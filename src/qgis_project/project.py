@@ -358,18 +358,19 @@ class Project:
 
     def print_layer_tree(self):
         """Print the layer tree to stdout."""
-        def _print_node(node, indent: int = 0):
+        def _print_node(node, indent: int):
             prefix = "  " * indent
             if isinstance(node, QgsLayerTreeLayer):
                 visible = "✓" if node.isVisible() else "○"
                 print(f"{prefix}[{visible}] {node.layer().name()}")
             elif isinstance(node, QgsLayerTreeGroup):
-                if indent > 0:
-                    print(f"{prefix}▶ {node.name()}")
+                visible = "✓" if node.isVisible() else "○"
+                print(f"{prefix}[{visible}] ▶ {node.name()}")
                 for child in node.children():
-                    _print_node(child, indent + (1 if indent > 0 else 0))
+                    _print_node(child, indent + 1)
 
-        _print_node(self._project.layerTreeRoot())
+        for child in self._project.layerTreeRoot().children():
+            _print_node(child, 0)
 
 
     def _find_group(self, path: list[str]):

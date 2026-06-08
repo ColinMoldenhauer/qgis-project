@@ -515,9 +515,9 @@ def t15_print_layer_tree(dem, slope, vector, out_dir, do_open=False) -> Path:
     """print_layer_tree() prints the layer tree to stdout.
     Expected terminal output:
         [✓] regions.geojson
-        ▶ terrain
+        [✓] ▶ terrain
           [✓] DEM
-          ▶ derived
+          [✓] ▶ derived
             [✓] Slope
     """
     from qgis_project import Project, RasterLayer
