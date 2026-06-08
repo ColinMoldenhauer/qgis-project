@@ -384,11 +384,16 @@ class Project:
                 return None
         return node
 
-    def _set_all_groups_expanded(self, node, expanded: bool):
-        for child in node.children():
-            if isinstance(child, QgsLayerTreeGroup):
-                child.setExpanded(expanded)
-                self._set_all_groups_expanded(child, expanded)
+    def _collapse_expand_all(self, expanded: bool):
+        from qgis.core import QgsLayerTreeModel
+        from qgis.gui import QgsLayerTreeView
+        model = QgsLayerTreeModel(self._project.layerTreeRoot())
+        view = QgsLayerTreeView()
+        view.setModel(model)
+        if expanded:
+            view.expandAll()
+        else:
+            view.collapseAll()
 
     def collapse_group(self, *path: str):
         """Collapse a group in the layer tree.
@@ -421,11 +426,11 @@ class Project:
 
     def collapse_all(self):
         """Collapse all groups in the layer tree."""
-        self._set_all_groups_expanded(self._project.layerTreeRoot(), False)
+        self._collapse_expand_all(False)
 
     def expand_all(self):
         """Expand all groups in the layer tree."""
-        self._set_all_groups_expanded(self._project.layerTreeRoot(), True)
+        self._collapse_expand_all(True)
 
 
 def _set_setters(cls_target, cls_src):
