@@ -115,10 +115,14 @@ class Project:
         logger.info(f"Added layer '{layer.get_layer_name()}' @ {group_str}")
 
 
-    def add_layer(self, layer: Layer | WebLayer | str):
-        """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer."""
+    def add_layer(self, layer: Layer | WebLayer | str, **kwargs):
+        """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer.
+
+        When *layer* is a string path, extra keyword arguments (``name``, ``group``,
+        ``visible``, ``crs``, ``overwrite_existing``) are forwarded to :class:`Layer`.
+        """
         if isinstance(layer, str):
-            layer = Layer(layer)
+            layer = Layer(layer, **kwargs)
         self._add_layer(layer)
 
 

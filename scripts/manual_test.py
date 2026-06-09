@@ -576,6 +576,8 @@ def t17_vector_formats(_dem, _slope, _vector, out_dir, do_open=False) -> Path:
     """One layer per common vector format, each in its own group.
     Expected: five groups (GeoJSON, GeoPackage, Shapefile, KML, FlatGeobuf),
     each containing the same two polygons.  Toggle groups to compare.
+    Note: FlatGeobuf layers may appear invisible in some GDAL/QGIS builds despite
+    loading correctly; this is a known rendering bug, not a format support issue.
     """
     from qgis_project import Project
 
