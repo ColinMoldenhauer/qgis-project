@@ -74,7 +74,6 @@ class RasterStyleBW(RasterStyle):
 
         qgis_layer.setRenderer(renderer)
         qgis_layer.renderer().setContrastEnhancement(enhancement)
-        qgis_layer.triggerRepaint()  # TODO: necessary?
         # Apply opacity after setRenderer() — raster opacity lives on the renderer,
         # so calling super before setRenderer() would be overwritten by the new renderer.
         super().set_style(layer)
