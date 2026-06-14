@@ -89,7 +89,6 @@ class Layer(_LayerMixin):
     name: str | None = None
 
     overwrite_existing: bool = False  # if layer is added, check whether to replace or ignore new layer on existing
-    statistics_precision: str | None = None  # TODO: how?
 
     # serialization methods (save/load)
     def save(self, filepath: str):
@@ -112,12 +111,16 @@ class RasterLayer(Layer):
     band_idx: int | list[int] = 1
     style: RasterStyle = field(default_factory=RasterStyle)
 
-    # TODO: computation mode estimate/exact
+    # Extra kwargs forwarded to QgsRasterDataProvider.bandStatistics(), e.g.
+    # sampleSize=0 for exact stats (default), sampleSize=250000 for a fast
+    # estimate, or extent=... to restrict the computed region.
+    statistics_kwargs: dict = field(default_factory=dict)
+
     @assert_link
     def get_layer_min(self):
         return (
             self.qgis_layer.dataProvider()
-            .bandStatistics(self.band_idx, QgsRasterBandStats.Min)
+            .bandStatistics(self.band_idx, QgsRasterBandStats.Min, **self.statistics_kwargs)
             .minimumValue
         )
 
@@ -125,7 +128,7 @@ class RasterLayer(Layer):
     def get_layer_max(self):
         return (
             self.qgis_layer.dataProvider()
-            .bandStatistics(self.band_idx, QgsRasterBandStats.Max)
+            .bandStatistics(self.band_idx, QgsRasterBandStats.Max, **self.statistics_kwargs)
             .maximumValue
         )
 
