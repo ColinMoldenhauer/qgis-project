@@ -106,6 +106,39 @@ layer = RasterLayer(
 proj.add_layer(layer)
 ```
 
+### Vector styling
+
+| Class | Effect |
+|---|---|
+| `VectorStyleSingleSymbol` | Uniform fill/line/marker color and outline |
+| `VectorStyleCategorized` | One color per unique attribute value |
+| `VectorStyleGraduated` | Equal-interval color classes (choropleth) for a numeric attribute |
+
+```python
+from qgis_project import Layer, VectorStyleSingleSymbol
+
+layer = Layer(
+    file="regions.geojson",
+    style=VectorStyleSingleSymbol(color="red", outline_color="black", outline_width=1.0),
+)
+proj.add_layer(layer)
+```
+
+`VectorStyleCategorized` and `VectorStyleGraduated` work on point, line, and
+polygon layers alike:
+
+```python
+from qgis_project import VectorStyleCategorized, VectorStyleGraduated
+
+layer = Layer("regions.geojson", style=VectorStyleCategorized(field="class", colormap="Spectral"))
+layer = Layer("regions.geojson", style=VectorStyleGraduated(field="value", num_classes=5, colormap="Viridis"))
+```
+
+If `vmin`/`vmax` are omitted from `VectorStyleGraduated`, they are computed
+from the field's data. `outline_color`/`outline_width` on
+`VectorStyleSingleSymbol` have no effect on line layers (a line has no
+separate outline).
+
 ### Open in QGIS
 
 ```python

@@ -9,3 +9,11 @@
 ::: qgis_project.RasterStyleSinglePseudocolor
 
 ::: qgis_project.RasterStyleMultiBandColor
+
+::: qgis_project.VectorStyle
+
+::: qgis_project.VectorStyleSingleSymbol
+
+::: qgis_project.VectorStyleCategorized
+
+::: qgis_project.VectorStyleGraduated
