@@ -63,10 +63,9 @@ class RasterStyleBW(RasterStyle):
 
         # https://gis.stackexchange.com/questions/377569/setting-max-min-values-of-singleband-grey-layer-using-pyqgis
         qgis_layer = layer.qgis_layer
-        renderer = QgsSingleBandGrayRenderer(
-            qgis_layer.dataProvider(), 1
-        )  # TODO: what is 1?
-        render_type = renderer.dataType(1)  # TODO: what is 1?
+        band = getattr(layer, "band_idx", 1)
+        renderer = QgsSingleBandGrayRenderer(qgis_layer.dataProvider(), band)
+        render_type = renderer.dataType(band)
         enhancement = QgsContrastEnhancement(render_type)
         contrast_enhancement = QgsContrastEnhancement.StretchToMinimumMaximum
         enhancement.setContrastEnhancementAlgorithm(contrast_enhancement, True)
