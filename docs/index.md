@@ -6,6 +6,14 @@
 
 Create QGIS projects programmatically using Python — a matplotlib-style API for building `.qgz` project files.
 
+**This package is** a thin wrapper around QGIS's most essential functions:
+loading layers (vector/raster, local/web), basic visualization, and basic
+processing.
+
+**This package is not** a tool for advanced or complex visual analysis or
+cartographic mapping — for that, use QGIS itself or a dedicated mapping
+library.
+
 ```python
 from qgis_project import Project, RasterLayer, RasterStyleBW
 
