@@ -52,6 +52,7 @@ class Project:
         self._processing_initialized = False
         self._data_dir: Path | None = Path(data_dir) if data_dir is not None else None
         self._auto_output_idx = 0
+        self._view_extent_set = False
         if file is not None:
             self._project.read(file)
         if crs is not None:
@@ -256,6 +257,7 @@ class Project:
         self._project.viewSettings().setDefaultViewExtent(ref_extent)
         self._canvas.setExtent(extent)
         self._canvas.refresh()
+        self._view_extent_set = True
 
 
     def open(self, file: str | None = None):
@@ -336,7 +338,14 @@ class Project:
 
 
     def save(self, file: str):
-        """Save the project to a .qgz file."""
+        """Save the project to a .qgz file.
+
+        If neither :meth:`zoom_to_all` nor :meth:`center` has been called, the
+        view is automatically zoomed to the extent of all layers.
+        """
+        if not self._view_extent_set:
+            self.zoom_to_all()
+
         p = Path(file)
         if self._data_dir is None:
             self._data_dir = p.parent / (p.stem + "_data")
