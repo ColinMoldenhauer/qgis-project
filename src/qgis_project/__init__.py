@@ -39,4 +39,5 @@ from .style import (
     VectorStyleSingleSymbol,
     VectorStyleCategorized,
     VectorStyleGraduated,
+    VectorLabels,
 )

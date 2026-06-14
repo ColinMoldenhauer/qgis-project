@@ -815,6 +815,40 @@ def t21_vector_geometry_types(dem, slope, vector, out_dir, do_open=False) -> Pat
 
 
 # ---------------------------------------------------------------------------
+# 22 – Filtering, labels, scale-based visibility, marker size/shape
+# ---------------------------------------------------------------------------
+
+@test
+def t22_filter_labels_scale(dem, slope, vector, out_dir, do_open=False) -> Path:
+    """Vector filtering, attribute labels, scale-based visibility, and marker
+    size/shape.
+    Expected: a polygon layer showing only 'high' class cells, each labeled
+    with its 'value'; and a point layer with large yellow star markers that
+    disappears once you zoom in past 1:50,000 (max scale).
+    """
+    from qgis_project import Layer, Project
+    from qgis_project.style import VectorLabels, VectorStyleSingleSymbol
+
+    grid_poly = _make_vector_grid(out_dir / "grid_filter_poly.geojson")
+    grid_point = _make_vector_grid(out_dir / "grid_filter_point.geojson", geom_type="Point")
+
+    proj = Project()
+    proj.add_layer(Layer(
+        str(grid_poly), name="Filtered + labeled (class = high)",
+        filter="class = 'high'",
+        labels=VectorLabels(field="value", size=14.0, color="blue"),
+    ))
+    proj.add_layer(Layer(
+        str(grid_point), name="Stars (visible when zoomed in)",
+        style=VectorStyleSingleSymbol(color="yellow", outline_color="black", size=6.0, marker_shape="star"),
+        max_scale=50000,
+    ))
+    out = out_dir / "22_filter_labels_scale.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 

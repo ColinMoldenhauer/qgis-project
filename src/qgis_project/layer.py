@@ -11,7 +11,7 @@ import pickle
 
 from qgis.core import QgsRasterBandStats
 
-from qgis_project.style import RasterStyle, VectorStyle
+from qgis_project.style import RasterStyle, VectorLabels, VectorStyle
 
 
 class QgisLayerLinkError(Exception):
@@ -83,6 +83,22 @@ class Layer(_LayerMixin):
         Vector styling to apply (e.g. ``VectorStyleSingleSymbol``,
         ``VectorStyleCategorized``, ``VectorStyleGraduated``). If ``None``,
         the QGIS default symbol is used. Ignored for raster files.
+    filter : str or None
+        QGIS expression used as a subset filter (``QgsVectorLayer.setSubsetString``),
+        e.g. ``"population > 1000"``. Only the matching features are loaded,
+        rendered, and included in extent/statistics calculations. Ignored for
+        raster files.
+    min_scale : float or None
+        Most zoomed-out scale denominator at which the layer is still visible,
+        e.g. ``100000`` for 1:100,000. Zooming out further (larger denominator)
+        hides the layer. If ``None``, no zoomed-out limit.
+    max_scale : float or None
+        Most zoomed-in scale denominator at which the layer is still visible,
+        e.g. ``1000`` for 1:1,000. Zooming in further (smaller denominator)
+        hides the layer. If ``None``, no zoomed-in limit.
+    labels : VectorLabels or None
+        Attribute-based labels to show on the layer. Independent of ``style``.
+        Ignored for raster files.
     """
 
     file: str
@@ -95,6 +111,10 @@ class Layer(_LayerMixin):
     overwrite_existing: bool = False  # if layer is added, check whether to replace or ignore new layer on existing
 
     style: VectorStyle | None = None
+    filter: str | None = None
+    min_scale: float | None = None
+    max_scale: float | None = None
+    labels: VectorLabels | None = None
 
     # serialization methods (save/load)
     def save(self, filepath: str):

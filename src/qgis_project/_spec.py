@@ -64,6 +64,7 @@ def _layer_from_dict(d: dict):
         VectorStyleSingleSymbol,
         VectorStyleCategorized,
         VectorStyleGraduated,
+        VectorLabels,
     )
 
     _style_types = {
@@ -84,6 +85,9 @@ def _layer_from_dict(d: dict):
         style_d = dict(d["style"])
         style_type = style_d.pop("type")
         d["style"] = _style_types[style_type](**style_d)
+
+    if "labels" in d and d["labels"] is not None:
+        d["labels"] = VectorLabels(**d["labels"])
 
     if layer_type == "Layer":
         return Layer(**d)

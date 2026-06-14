@@ -17,3 +17,5 @@
 ::: qgis_project.VectorStyleCategorized
 
 ::: qgis_project.VectorStyleGraduated
+
+::: qgis_project.VectorLabels

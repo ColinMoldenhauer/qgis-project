@@ -193,14 +193,22 @@ class VectorStyleSingleSymbol(VectorStyle):
         Outline/stroke color for polygon and marker symbols.
     outline_width : float | None
         Outline/stroke width in millimeters for polygon, line, and marker symbols.
+    size : float | None
+        Marker size in millimeters. Only applies to point layers.
+    marker_shape : str | None
+        Marker shape for point layers, e.g. ``"circle"``, ``"square"``,
+        ``"triangle"``, ``"star"``. See
+        ``QgsSimpleMarkerSymbolLayerBase.decodeShape()`` for all accepted names.
     """
 
     color: str | None = None
     outline_color: str | None = None
     outline_width: float | None = None
+    size: float | None = None
+    marker_shape: str | None = None
 
     def set_style(self, layer: "Layer"):
-        from qgis.core import QgsSingleSymbolRenderer
+        from qgis.core import QgsSimpleMarkerSymbolLayerBase, QgsSingleSymbolRenderer
         from qgis.PyQt.QtGui import QColor
 
         qgis_layer = layer.qgis_layer
@@ -208,12 +216,19 @@ class VectorStyleSingleSymbol(VectorStyle):
 
         if self.color is not None:
             symbol.setColor(QColor(self.color))
+        if self.size is not None and hasattr(symbol, "setSize"):
+            symbol.setSize(self.size)
         for i in range(symbol.symbolLayerCount()):
             symbol_layer = symbol.symbolLayer(i)
             if self.outline_color is not None and hasattr(symbol_layer, "setStrokeColor"):
                 symbol_layer.setStrokeColor(QColor(self.outline_color))
             if self.outline_width is not None and hasattr(symbol_layer, "setStrokeWidth"):
                 symbol_layer.setStrokeWidth(self.outline_width)
+            if self.marker_shape is not None and hasattr(symbol_layer, "setShape"):
+                shape, ok = QgsSimpleMarkerSymbolLayerBase.decodeShape(self.marker_shape)
+                if not ok:
+                    raise ValueError(f"Unknown marker shape: {self.marker_shape!r}")
+                symbol_layer.setShape(shape)
 
         qgis_layer.setRenderer(QgsSingleSymbolRenderer(symbol))
         super().set_style(layer)
@@ -346,3 +361,56 @@ def _get_color_ramp(colormap: str):
             f"Run QgsStyle.defaultStyle().colorRampNames() to list available names."
         )
     return style.colorRamp(matched)
+
+
+@dataclass
+class VectorLabels:
+    """
+    Attribute-based labels for vector layers.
+
+    Labeling is independent of the layer's renderer/style and can be combined
+    with any ``VectorStyle``.
+
+    Parameters
+    ----------
+    field : str
+        Name of the attribute field to use as label text, or a QGIS
+        expression if ``is_expression`` is ``True``.
+    size : float
+        Font size in points.
+    color : str
+        Text color, e.g. ``"black"``, ``"#000000"``.
+    is_expression : bool
+        If ``True``, ``field`` is evaluated as a QGIS expression rather than
+        a plain field name, e.g. ``"name || ' (' || value || ')'"``.
+    """
+
+    field: str = ""
+    size: float = 10.0
+    color: str = "black"
+    is_expression: bool = False
+
+    def apply(self, layer: "Layer"):
+        from qgis.core import QgsPalLayerSettings, QgsTextFormat, QgsVectorLayerSimpleLabeling
+        from qgis.PyQt.QtGui import QColor
+
+        if not self.field:
+            raise ValueError("VectorLabels requires 'field' to be set.")
+
+        qgis_layer = layer.qgis_layer
+        if not self.is_expression and qgis_layer.fields().indexOf(self.field) < 0:
+            raise ValueError(
+                f"Field {self.field!r} not found on layer {layer.get_layer_name()!r}."
+            )
+
+        text_format = QgsTextFormat()
+        text_format.setSize(self.size)
+        text_format.setColor(QColor(self.color))
+
+        settings = QgsPalLayerSettings()
+        settings.fieldName = self.field
+        settings.isExpression = self.is_expression
+        settings.setFormat(text_format)
+
+        qgis_layer.setLabeling(QgsVectorLayerSimpleLabeling(settings))
+        qgis_layer.setLabelsEnabled(True)

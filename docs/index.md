@@ -123,7 +123,35 @@ layer = Layer("regions.geojson", style=VectorStyleGraduated(field="value", num_c
 If `vmin`/`vmax` are omitted from `VectorStyleGraduated`, they are computed
 from the field's data. `outline_color`/`outline_width` on
 `VectorStyleSingleSymbol` have no effect on line layers (a line has no
-separate outline).
+separate outline). For point layers, `VectorStyleSingleSymbol` also accepts
+`size` (marker size in mm) and `marker_shape` (e.g. `"circle"`, `"square"`,
+`"triangle"`, `"star"`).
+
+### Filtering, labels, and scale-based visibility
+
+`Layer.filter` restricts a vector layer to features matching a QGIS
+expression (`QgsVectorLayer.setSubsetString`):
+
+```python
+layer = Layer("regions.geojson", filter="population > 1000")
+```
+
+`Layer.labels` adds attribute-based labels, independent of `style`:
+
+```python
+from qgis_project import VectorLabels
+
+layer = Layer("regions.geojson", labels=VectorLabels(field="name", size=12, color="black"))
+```
+
+`Layer.min_scale`/`Layer.max_scale` set scale-dependent visibility (scale
+denominators). `min_scale` is the most zoomed-out scale at which the layer
+is still visible; `max_scale` is the most zoomed-in scale at which it's
+still visible:
+
+```python
+layer = Layer("regions.geojson", max_scale=50000)  # hidden once zoomed in past 1:50,000
+```
 
 ### Inspect and open
 

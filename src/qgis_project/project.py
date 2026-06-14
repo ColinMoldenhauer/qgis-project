@@ -99,8 +99,27 @@ class Project:
             logger.error(f"Failed to load layer: {source}")
             return
 
+        layer_filter = getattr(layer, "filter", None)
+        if isinstance(qgis_layer, QgsVectorLayer) and layer_filter:
+            if not qgis_layer.setSubsetString(layer_filter):
+                logger.warning(
+                    f"Invalid filter expression for '{layer.get_layer_name()}': {layer_filter!r}"
+                )
+
         if getattr(layer, "style", None) is not None:
             layer.style.set_style(layer)
+
+        if isinstance(qgis_layer, QgsVectorLayer) and getattr(layer, "labels", None) is not None:
+            layer.labels.apply(layer)
+
+        min_scale = getattr(layer, "min_scale", None)
+        max_scale = getattr(layer, "max_scale", None)
+        if min_scale is not None or max_scale is not None:
+            qgis_layer.setScaleBasedVisibility(True)
+            if min_scale is not None:
+                qgis_layer.setMinimumScale(min_scale)
+            if max_scale is not None:
+                qgis_layer.setMaximumScale(max_scale)
 
         layer_path = layer.get_path()
         if layer_exists_by_path(self._project, layer_path):
