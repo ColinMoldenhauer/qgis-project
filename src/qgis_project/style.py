@@ -19,7 +19,8 @@ class Style:
     opacity : float
         The layer opacity in the interval [0, 1]
     """
-    opacity: float = 1.
+
+    opacity: float = 1.0
 
     def set_style(self, layer: Layer):
         """Apply the style to the low-level QGIS objects for layer styling."""
@@ -41,6 +42,7 @@ class RasterStyle(Style):
         The maximum value used for the colorbar.
         If None, will be automatically determined from the layer data
     """
+
     vmin: float | None = None
     vmax: float | None = None
 
@@ -57,8 +59,10 @@ class RasterStyleBW(RasterStyle):
 
         # https://gis.stackexchange.com/questions/377569/setting-max-min-values-of-singleband-grey-layer-using-pyqgis
         qgis_layer = layer.qgis_layer
-        renderer = QgsSingleBandGrayRenderer(qgis_layer.dataProvider(), 1)   # TODO: what is 1?
-        render_type = renderer.dataType(1)   # TODO: what is 1?
+        renderer = QgsSingleBandGrayRenderer(
+            qgis_layer.dataProvider(), 1
+        )  # TODO: what is 1?
+        render_type = renderer.dataType(1)  # TODO: what is 1?
         enhancement = QgsContrastEnhancement(render_type)
         contrast_enhancement = QgsContrastEnhancement.StretchToMinimumMaximum
         enhancement.setContrastEnhancementAlgorithm(contrast_enhancement, True)
@@ -73,7 +77,6 @@ class RasterStyleBW(RasterStyle):
         super().set_style(layer)
 
 
-
 @dataclass
 class RasterStyleSinglePseudocolor(RasterStyle):
     """
@@ -86,6 +89,7 @@ class RasterStyleSinglePseudocolor(RasterStyle):
         ``"Spectral"``, ``"RdYlBu"``. Run ``QgsStyle.defaultStyle().colorRampNames()``
         to see all available names.
     """
+
     colormap: str = "viridis"
 
     def set_style(self, layer: "Layer"):
@@ -105,7 +109,9 @@ class RasterStyleSinglePseudocolor(RasterStyle):
 
         style = QgsStyle.defaultStyle()
         ramp_names = style.colorRampNames()
-        matched = next((n for n in ramp_names if n.lower() == self.colormap.lower()), None)
+        matched = next(
+            (n for n in ramp_names if n.lower() == self.colormap.lower()), None
+        )
         if matched is None:
             raise ValueError(
                 f"Color ramp {self.colormap!r} not found in QGIS style library. "
@@ -138,4 +144,5 @@ class RasterStyleMultiPseudocolor(RasterStyle):
     colormap : str
         Name of the colormap to use for layer styling
     """
+
     colormap: str = "viridis"

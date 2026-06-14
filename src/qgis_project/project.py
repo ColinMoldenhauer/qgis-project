@@ -26,12 +26,22 @@ from qgis.core import (
 from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsMapCanvas
 
 from qgis_project.layer import Layer, WebLayer
-from qgis_project.utils import add_or_get_group, get_layer_by_idx, layer_exists_by_path, normalize_crs, remove_layer_by_path
+from qgis_project.utils import (
+    add_or_get_group,
+    get_layer_by_idx,
+    layer_exists_by_path,
+    normalize_crs,
+    remove_layer_by_path,
+)
 
 
 class Project:
-    def __init__(self, file: str | None = None, crs: str | int | None = None,
-                 data_dir: str | Path | None = None):
+    def __init__(
+        self,
+        file: str | None = None,
+        crs: str | int | None = None,
+        data_dir: str | Path | None = None,
+    ):
         existing = QgsApplication.instance()
         if existing is None:
             self._application = QgsApplication([], False)
@@ -64,7 +74,9 @@ class Project:
             if layer.provider == "WFS":
                 qgis_layer = QgsVectorLayer(layer.uri, layer.get_layer_name(), "WFS")
             else:
-                qgis_layer = QgsRasterLayer(layer.uri, layer.get_layer_name(), layer.provider)
+                qgis_layer = QgsRasterLayer(
+                    layer.uri, layer.get_layer_name(), layer.provider
+                )
         else:
             if not os.path.exists(layer.file):
                 logger.error(f"File does not exist: {layer.file}")
@@ -87,7 +99,7 @@ class Project:
             logger.error(f"Failed to load layer: {source}")
             return
 
-        if hasattr(layer, 'style'):
+        if hasattr(layer, "style"):
             layer.style.set_style(layer)
 
         layer_path = layer.get_path()
@@ -112,9 +124,10 @@ class Project:
 
         layer_node.setItemVisibilityChecked(layer.visible)
 
-        group_str = '/'.join(['/ROOT', *layer.get_path()[:-1]]) if layer.group else '/ROOT'
+        group_str = (
+            "/".join(["/ROOT", *layer.get_path()[:-1]]) if layer.group else "/ROOT"
+        )
         logger.info(f"Added layer '{layer.get_layer_name()}' @ {group_str}")
-
 
     def add_layer(self, layer: Layer | WebLayer | str, **kwargs):
         """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer.
@@ -126,13 +139,11 @@ class Project:
             layer = Layer(layer, **kwargs)
         self._add_layer(layer)
 
-
     def remove_layer(self, layer: Layer | str):
         """Remove a layer from the project by path."""
         if isinstance(layer, str):
             layer = Layer(layer)
         remove_layer_by_path(self._project, layer.get_path())
-
 
     def set_crs(self, crs: str | int):
         """Set the project's coordinate reference system.
@@ -144,8 +155,14 @@ class Project:
         """
         self._project.setCrs(QgsCoordinateReferenceSystem(normalize_crs(crs)))
 
-
-    def process(self, algorithm: str, params: dict, name: str = "", group=None, visible: bool = True):
+    def process(
+        self,
+        algorithm: str,
+        params: dict,
+        name: str = "",
+        group=None,
+        visible: bool = True,
+    ):
         """Run a QGIS Processing algorithm and add the result to the project.
 
         Parameters
@@ -189,7 +206,9 @@ class Project:
             logger.warning(f"Algorithm {algorithm!r} produced no OUTPUT")
             return
         if isinstance(output, str):
-            self._add_layer(Layer(output, name=layer_name, group=group, visible=visible))
+            self._add_layer(
+                Layer(output, name=layer_name, group=group, visible=visible)
+            )
         else:
             output.setName(layer_name)
             add_to_root = group is None
@@ -202,16 +221,17 @@ class Project:
             if node:
                 node.setItemVisibilityChecked(visible)
             else:
-                logger.warning(f"Could not find layer tree node for processing result '{layer_name}'")
-
+                logger.warning(
+                    f"Could not find layer tree node for processing result '{layer_name}'"
+                )
 
     def _ensure_processing(self):
         if self._processing_initialized:
             return
         from processing.core.Processing import Processing
+
         Processing.initialize()
         self._processing_initialized = True
-
 
     def center(self, layer: Layer | None = None):
         """
@@ -223,9 +243,10 @@ class Project:
         else:
             qgis_layer = layer.qgis_layer
 
-        extent = self._transform_extent_to_project_crs(qgis_layer.extent(), qgis_layer.crs())
+        extent = self._transform_extent_to_project_crs(
+            qgis_layer.extent(), qgis_layer.crs()
+        )
         self._set_view_extent(extent)
-
 
     def zoom_to_all(self):
         """Set the project's initial view extent to the union of all layers."""
@@ -235,13 +256,16 @@ class Project:
             if qgis_layer is None:
                 continue
             try:
-                extent = self._transform_extent_to_project_crs(qgis_layer.extent(), qgis_layer.crs())
+                extent = self._transform_extent_to_project_crs(
+                    qgis_layer.extent(), qgis_layer.crs()
+                )
                 combined.combineExtentWith(extent)
             except Exception:
-                logger.warning(f"Could not transform extent for layer: {qgis_layer.name()}")
+                logger.warning(
+                    f"Could not transform extent for layer: {qgis_layer.name()}"
+                )
         if not combined.isNull():
             self._set_view_extent(combined)
-
 
     def _transform_extent_to_project_crs(self, extent, layer_crs):
         project_crs = self._project.crs()
@@ -250,7 +274,6 @@ class Project:
         transform = QgsCoordinateTransform(layer_crs, project_crs, self._project)
         return transform.transformBoundingBox(extent)
 
-
     def _set_view_extent(self, extent):
         project_crs = self._project.crs()
         ref_extent = QgsReferencedRectangle(extent, project_crs)
@@ -258,7 +281,6 @@ class Project:
         self._canvas.setExtent(extent)
         self._canvas.refresh()
         self._view_extent_set = True
-
 
     def open(self, file: str | None = None):
         """
@@ -286,7 +308,6 @@ class Project:
             )
         subprocess.Popen([qgis_bin, file])
         logger.info(f"Opened QGIS with project: {file}")
-
 
     def snapshot(self, path: str | None = None):
         """Capture the current canvas as a still image.
@@ -323,19 +344,21 @@ class Project:
         # Jupyter: display inline
         try:
             from IPython import get_ipython
+
             if get_ipython() is not None:
                 from IPython.display import Image
+
                 return Image(data=png)
         except ImportError:
             pass
 
         # Script fallback: write to a temp file and return path
         import tempfile
+
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         tmp.write(png)
         tmp.close()
         return _Path(tmp.name)
-
 
     def save(self, file: str):
         """Save the project to a .qgz file.
@@ -357,7 +380,6 @@ class Project:
             )
         logger.info(f"Project saved to: {file}")
 
-
     def exit(self):
         """Clean up the QGIS application.
 
@@ -368,9 +390,9 @@ class Project:
         if self._owns_app:
             self._application.exitQgis()
 
-
     def print_layer_tree(self):
         """Print the layer tree to stdout."""
+
         def _print_node(node, indent: int):
             prefix = "  " * indent
             if isinstance(node, QgsLayerTreeLayer):
@@ -385,13 +407,16 @@ class Project:
         for child in self._project.layerTreeRoot().children():
             _print_node(child, 0)
 
-
     def _find_group(self, path: list[str]):
         """Return the QgsLayerTreeGroup at *path*, or None if not found."""
         node = self._project.layerTreeRoot()
         for name in path:
             node = next(
-                (c for c in node.children() if isinstance(c, QgsLayerTreeGroup) and c.name() == name),
+                (
+                    c
+                    for c in node.children()
+                    if isinstance(c, QgsLayerTreeGroup) and c.name() == name
+                ),
                 None,
             )
             if node is None:
@@ -401,6 +426,7 @@ class Project:
     def _collapse_expand_all(self, expanded: bool):
         from qgis.core import QgsLayerTreeModel
         from qgis.gui import QgsLayerTreeView
+
         model = QgsLayerTreeModel(self._project.layerTreeRoot())
         view = QgsLayerTreeView()
         view.setModel(model)
@@ -445,10 +471,3 @@ class Project:
     def expand_all(self):
         """Expand all groups in the layer tree."""
         self._collapse_expand_all(True)
-
-
-def _set_setters(cls_target, cls_src):
-    for attr_ in dir(cls_src):
-        if attr_.startswith("_"): continue
-        def setter(self, val): setattr(self, attr_, val)
-        setattr(cls_target, f"set_{attr_}", setter)

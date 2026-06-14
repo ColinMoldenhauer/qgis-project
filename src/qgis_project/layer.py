@@ -14,10 +14,11 @@ from qgis.core import QgsRasterBandStats
 from qgis_project.style import RasterStyle
 
 
-
 class QgisLayerLinkError(Exception):
     def __init__(self):
-        super().__init__("Layer has not been linked with a low-level QGIS layer object.")
+        super().__init__(
+            "Layer has not been linked with a low-level QGIS layer object."
+        )
 
 
 def assert_link(f):
@@ -26,11 +27,13 @@ def assert_link(f):
 
     Raise an exception if no low-level QGIS layer object has been linked to the layer.
     """
+
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         if not hasattr(self, "qgis_layer"):
             raise QgisLayerLinkError()
         return f(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -79,26 +82,24 @@ class Layer(_LayerMixin):
     """
 
     file: str
-    crs: str | int|  None = None
+    crs: str | int | None = None
     visible: bool = True
 
     group: str | list[str] | None = None
     name: str | None = None
 
-    overwrite_existing: bool = False    # if layer is added, check whether to replace or ignore new layer on existing
-    statistics_precision: str | None = None     # TODO: how?
-
+    overwrite_existing: bool = False  # if layer is added, check whether to replace or ignore new layer on existing
+    statistics_precision: str | None = None  # TODO: how?
 
     # serialization methods (save/load)
     def save(self, filepath: str):
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(self, f)
 
     @classmethod
     def load(cls, filepath: str):
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return pickle.load(f)
-
 
     def get_layer_name(self):
         """Get the dataset's name as shown in the layer."""
@@ -114,11 +115,19 @@ class RasterLayer(Layer):
     # TODO: computation mode estimate/exact
     @assert_link
     def get_layer_min(self):
-        return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Min).minimumValue
+        return (
+            self.qgis_layer.dataProvider()
+            .bandStatistics(self.band_idx, QgsRasterBandStats.Min)
+            .minimumValue
+        )
 
     @assert_link
     def get_layer_max(self):
-        return self.qgis_layer.dataProvider().bandStatistics(self.band_idx, QgsRasterBandStats.Max).maximumValue
+        return (
+            self.qgis_layer.dataProvider()
+            .bandStatistics(self.band_idx, QgsRasterBandStats.Max)
+            .maximumValue
+        )
 
     def set_band_idx(self, band_idx: int | list[int]):
         self.band_idx = band_idx
@@ -165,6 +174,7 @@ class WebLayer(_LayerMixin):
         WebLayer.wms(url, layers)
         WebLayer.wfs(url, typename)
     """
+
     uri: str
     provider: str = "wms"
     name: str = ""
@@ -177,7 +187,9 @@ class WebLayer(_LayerMixin):
         return self.name or "Web Layer"
 
     @classmethod
-    def xyz(cls, url: str, name: str = "XYZ", zmin: int = 0, zmax: int = 19, **kwargs) -> "WebLayer":
+    def xyz(
+        cls, url: str, name: str = "XYZ", zmin: int = 0, zmax: int = 19, **kwargs
+    ) -> "WebLayer":
         """XYZ/slippy-map tile layer."""
         uri = f"type=xyz&url={url}&zmin={zmin}&zmax={zmax}"
         return cls(uri=uri, provider="wms", name=name, **kwargs)
@@ -189,8 +201,15 @@ class WebLayer(_LayerMixin):
         return cls.xyz("https://tile.openstreetmap.org/{z}/{x}/{y}.png", **kwargs)
 
     @classmethod
-    def wms(cls, url: str, layers: str, format: str = "image/png",
-            crs: str = "EPSG:4326", name: str = "", **kwargs) -> "WebLayer":
+    def wms(
+        cls,
+        url: str,
+        layers: str,
+        format: str = "image/png",
+        crs: str = "EPSG:4326",
+        name: str = "",
+        **kwargs,
+    ) -> "WebLayer":
         """OGC Web Map Service layer."""
         uri = f"url={url}&layers={layers}&styles=&format={format}&crs={crs}"
         return cls(uri=uri, provider="wms", name=name or layers, crs=crs, **kwargs)
