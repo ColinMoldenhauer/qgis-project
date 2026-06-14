@@ -29,4 +29,4 @@ else:
                 )
 
 from .layer import Layer, ProcessingOp, RasterLayer, WebLayer
-from .style import Style, RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiPseudocolor
+from .style import Style, RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiBandColor

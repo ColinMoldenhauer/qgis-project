@@ -66,8 +66,8 @@ proj.add_layer(RasterLayer("slope.tif", group=["terrain", "derived"]))
 | Class | Effect |
 |---|---|
 | `RasterStyleBW` | Grayscale with contrast stretch |
-| `RasterStyleSinglePseudocolor` | Single-band color ramp *(planned)* |
-| `RasterStyleMultiPseudocolor` | Multi-band color ramp *(planned)* |
+| `RasterStyleSinglePseudocolor` | Single-band color ramp |
+| `RasterStyleMultiBandColor` | Multi-band RGB/false-color composite |
 
 ```python
 from qgis_project import RasterStyleBW
@@ -76,6 +76,15 @@ layer = RasterLayer("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000))
 ```
 
 If `vmin`/`vmax` are omitted they are computed from the layer data.
+
+`RasterStyleMultiBandColor` requires `band_idx` to be a list of three band
+numbers `[R, G, B]`:
+
+```python
+from qgis_project import RasterStyleMultiBandColor
+
+layer = RasterLayer("rgb.tif", band_idx=[1, 2, 3], style=RasterStyleMultiBandColor())
+```
 
 ### Inspect and open
 

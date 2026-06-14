@@ -35,16 +35,20 @@ class RasterStyle(Style):
 
     Parameters
     ----------
-    vmin : float | None
-        The minimum value used for the colorbar.
-        If None, will be automatically determined from the layer data
-    vmax : float | None
-        The maximum value used for the colorbar.
-        If None, will be automatically determined from the layer data
+    vmin : float | list[float] | None
+        The minimum value used for the colorbar/contrast stretch.
+        If None, will be automatically determined from the layer data.
+        For styles with multiple bands (e.g. RasterStyleMultiBandColor), a
+        list applies one value per band; a single value applies to all bands.
+    vmax : float | list[float] | None
+        The maximum value used for the colorbar/contrast stretch.
+        If None, will be automatically determined from the layer data.
+        For styles with multiple bands (e.g. RasterStyleMultiBandColor), a
+        list applies one value per band; a single value applies to all bands.
     """
 
-    vmin: float | None = None
-    vmax: float | None = None
+    vmin: float | list[float] | None = None
+    vmax: float | list[float] | None = None
 
 
 @dataclass
@@ -133,16 +137,49 @@ class RasterStyleSinglePseudocolor(RasterStyle):
         super().set_style(layer)
 
 
-# TODO: implement and test
 @dataclass
-class RasterStyleMultiPseudocolor(RasterStyle):
+class RasterStyleMultiBandColor(RasterStyle):
     """
-    A multi-band pseudocolor style for raster layers.
+    A multi-band color (RGB) style for raster layers.
 
-    Parameters
-    ----------
-    colormap : str
-        Name of the colormap to use for layer styling
+    Maps three raster bands to the red, green, and blue channels, each with
+    an independent contrast stretch — e.g. true-color or false-color
+    composites. Requires ``layer.band_idx`` to be a list of three band
+    numbers, e.g. ``[1, 2, 3]`` for (R, G, B).
     """
 
-    colormap: str = "viridis"
+    def set_style(self, layer: "Layer"):
+        from qgis.core import QgsMultiBandColorRenderer
+
+        band_idx = layer.band_idx
+        if not isinstance(band_idx, (list, tuple)) or len(band_idx) != 3:
+            raise ValueError(
+                "RasterStyleMultiBandColor requires layer.band_idx to be a "
+                "list of three band numbers, e.g. [1, 2, 3] for (R, G, B)."
+            )
+
+        qgis_layer = layer.qgis_layer
+        provider = qgis_layer.dataProvider()
+
+        vmins = self.vmin if isinstance(self.vmin, (list, tuple)) else [self.vmin] * 3
+        vmaxs = self.vmax if isinstance(self.vmax, (list, tuple)) else [self.vmax] * 3
+
+        renderer = QgsMultiBandColorRenderer(provider, *band_idx)
+        setters = [
+            renderer.setRedContrastEnhancement,
+            renderer.setGreenContrastEnhancement,
+            renderer.setBlueContrastEnhancement,
+        ]
+        for band, vmin, vmax, set_enhancement in zip(band_idx, vmins, vmaxs, setters):
+            vmin = vmin if vmin is not None else layer.get_layer_min(band)
+            vmax = vmax if vmax is not None else layer.get_layer_max(band)
+            enhancement = QgsContrastEnhancement(provider.dataType(band))
+            enhancement.setContrastEnhancementAlgorithm(
+                QgsContrastEnhancement.StretchToMinimumMaximum, True
+            )
+            enhancement.setMinimumValue(vmin)
+            enhancement.setMaximumValue(vmax)
+            set_enhancement(enhancement)
+
+        qgis_layer.setRenderer(renderer)
+        super().set_style(layer)

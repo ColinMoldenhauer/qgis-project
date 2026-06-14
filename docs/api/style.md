@@ -8,4 +8,4 @@
 
 ::: qgis_project.RasterStyleSinglePseudocolor
 
-::: qgis_project.RasterStyleMultiPseudocolor
+::: qgis_project.RasterStyleMultiBandColor

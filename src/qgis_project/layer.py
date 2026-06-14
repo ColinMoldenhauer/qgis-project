@@ -107,7 +107,8 @@ class Layer(_LayerMixin):
 
 @dataclass
 class RasterLayer(Layer):
-    # TODO: how to handle multi-layer visualization (pseudo-color plots)
+    # int for single-band styles (RasterStyleBW, RasterStyleSinglePseudocolor);
+    # list of three band numbers [R, G, B] for RasterStyleMultiBandColor.
     band_idx: int | list[int] = 1
     style: RasterStyle = field(default_factory=RasterStyle)
 
@@ -117,25 +118,29 @@ class RasterLayer(Layer):
     statistics_kwargs: dict = field(default_factory=dict)
 
     @assert_link
-    def get_layer_min(self):
+    def get_layer_min(self, band: int | None = None):
+        band = band if band is not None else self.band_idx
+        if not isinstance(band, int):
+            raise ValueError("band must be specified explicitly when band_idx is a list")
         return (
             self.qgis_layer.dataProvider()
-            .bandStatistics(self.band_idx, QgsRasterBandStats.Min, **self.statistics_kwargs)
+            .bandStatistics(band, QgsRasterBandStats.Min, **self.statistics_kwargs)
             .minimumValue
         )
 
     @assert_link
-    def get_layer_max(self):
+    def get_layer_max(self, band: int | None = None):
+        band = band if band is not None else self.band_idx
+        if not isinstance(band, int):
+            raise ValueError("band must be specified explicitly when band_idx is a list")
         return (
             self.qgis_layer.dataProvider()
-            .bandStatistics(self.band_idx, QgsRasterBandStats.Max, **self.statistics_kwargs)
+            .bandStatistics(band, QgsRasterBandStats.Max, **self.statistics_kwargs)
             .maximumValue
         )
 
     def set_band_idx(self, band_idx: int | list[int]):
         self.band_idx = band_idx
-
-        # TODO: re-compute min/max? redraw? other re-computes?
 
 
 @dataclass

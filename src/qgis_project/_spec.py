@@ -55,13 +55,13 @@ def _layer_to_dict(layer) -> dict:
 
 def _layer_from_dict(d: dict):
     from .layer import Layer, RasterLayer, WebLayer
-    from .style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiPseudocolor
+    from .style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, RasterStyleMultiBandColor
 
     _style_types = {
         "RasterStyle": RasterStyle,
         "RasterStyleBW": RasterStyleBW,
         "RasterStyleSinglePseudocolor": RasterStyleSinglePseudocolor,
-        "RasterStyleMultiPseudocolor": RasterStyleMultiPseudocolor,
+        "RasterStyleMultiBandColor": RasterStyleMultiBandColor,
     }
 
     d = dict(d)

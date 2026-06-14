@@ -57,6 +57,29 @@ def _make_raster(path: Path, rows: int = 64, cols: int = 64, seed: int = 0) -> P
     return path
 
 
+def _make_raster_multiband(path: Path, rows: int = 64, cols: int = 64, bands: int = 3, seed: int = 0) -> Path:
+    """Write a small multi-band float32 GeoTIFF at *path*, one seed per band."""
+    try:
+        import numpy as np
+    except ImportError:
+        sys.exit("numpy not found: pip install numpy")
+    from osgeo import gdal, osr
+
+    driver = gdal.GetDriverByName("GTiff")
+    ds = driver.Create(str(path), cols, rows, bands, gdal.GDT_Float32)
+    ds.SetGeoTransform([10.0, 0.01, 0.0, 48.0, 0.0, -0.01])   # roughly central Europe
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+    for b in range(bands):
+        rng = np.random.default_rng(seed + b)
+        data = rng.uniform(0, 3000, (rows, cols)).astype(np.float32)
+        ds.GetRasterBand(b + 1).WriteArray(data)
+    ds.FlushCache()
+    ds = None
+    return path
+
+
 def _make_vector(path: Path) -> Path:
     """Write a minimal GeoJSON with two polygon features."""
     path.write_text("""{
@@ -639,6 +662,36 @@ def t18_raster_formats(dem, _slope, _vector, out_dir, do_open=False) -> Path:
         proj.add_layer(str(nc), group="NetCDF (.nc)")
 
     out = out_dir / "18_raster_formats.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 19 – Multi-band color (RGB / false-color composite)
+# ---------------------------------------------------------------------------
+
+@test
+def t19_multiband_color(dem, slope, vector, out_dir, do_open=False) -> Path:
+    """3-band raster rendered with RasterStyleMultiBandColor.
+    Expected: a false-color composite (R=band1, G=band2, B=band3), each
+    band independently contrast-stretched; one with explicit vmin/vmax,
+    one with per-band auto limits.
+    """
+    from qgis_project import Project, RasterLayer
+    from qgis_project.style import RasterStyleMultiBandColor
+
+    rgb = _make_raster_multiband(out_dir / "rgb.tif")
+
+    proj = Project()
+    proj.add_layer(RasterLayer(
+        str(rgb), name="RGB (explicit limits)", band_idx=[1, 2, 3],
+        style=RasterStyleMultiBandColor(vmin=0, vmax=3000),
+    ))
+    proj.add_layer(RasterLayer(
+        str(rgb), name="RGB (auto limits)", band_idx=[3, 2, 1],
+        style=RasterStyleMultiBandColor(),
+    ))
+    out = out_dir / "19_multiband_color.qgz"
     _finish(proj, out, do_open)
     return out
 
