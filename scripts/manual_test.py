@@ -106,6 +106,46 @@ def _make_vector(path: Path) -> Path:
     return path
 
 
+def _make_vector_grid(path: Path, rows: int = 3, cols: int = 3, geom_type: str = "Polygon") -> Path:
+    """Write a GeoJSON grid with categorical and numeric attributes.
+
+    *geom_type* controls the feature geometry per grid cell:
+    ``"Polygon"`` (the cell square), ``"Point"`` (the cell center), or
+    ``"LineString"`` (the cell diagonal).
+    """
+    classes = ["low", "medium", "high"]
+    features = []
+    for r in range(rows):
+        for c in range(cols):
+            x0, y0 = 10.0 + c * 0.5, 47.5 + r * 0.5
+            x1, y1 = x0 + 0.5, y0 + 0.5
+            value = r * cols + c
+
+            if geom_type == "Polygon":
+                geometry = {
+                    "type": "Polygon",
+                    "coordinates": [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]],
+                }
+            elif geom_type == "Point":
+                geometry = {"type": "Point", "coordinates": [(x0 + x1) / 2, (y0 + y1) / 2]}
+            elif geom_type == "LineString":
+                geometry = {"type": "LineString", "coordinates": [[x0, y0], [x1, y1]]}
+            else:
+                raise ValueError(f"Unsupported geom_type: {geom_type!r}")
+
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "class": classes[(r + c) % len(classes)],
+                    "value": value,
+                },
+                "geometry": geometry,
+            })
+    import json
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+    return path
+
+
 def _make_vector_ogr(path: Path, driver_name: str, x_offset: float = 0.0) -> Path | None:
     """Write two polygon features via OGR at *x_offset* degrees from the base area.
     Returns None if the driver is unavailable."""
@@ -692,6 +732,84 @@ def t19_multiband_color(dem, slope, vector, out_dir, do_open=False) -> Path:
         style=RasterStyleMultiBandColor(),
     ))
     out = out_dir / "19_multiband_color.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 20 – Vector styling (single symbol, categorized, graduated)
+# ---------------------------------------------------------------------------
+
+@test
+def t20_vector_styles(dem, slope, vector, out_dir, do_open=False) -> Path:
+    """Vector layers with single-symbol, categorized, and graduated styles.
+    Expected: a red-filled polygon layer with a thick black outline; a
+    layer colored by 'class' (low/medium/high); and a choropleth of
+    'value' using equal-interval classes.
+    """
+    from qgis_project import Layer, Project
+    from qgis_project.style import (
+        VectorStyleCategorized,
+        VectorStyleGraduated,
+        VectorStyleSingleSymbol,
+    )
+
+    grid = _make_vector_grid(out_dir / "grid.geojson")
+
+    proj = Project()
+    proj.add_layer(Layer(
+        str(vector), name="Single symbol",
+        style=VectorStyleSingleSymbol(color="red", outline_color="black", outline_width=1.0),
+    ))
+    proj.add_layer(Layer(
+        str(grid), name="Categorized (class)",
+        style=VectorStyleCategorized(field="class", colormap="Spectral"),
+    ))
+    proj.add_layer(Layer(
+        str(grid), name="Graduated (value)",
+        style=VectorStyleGraduated(field="value", num_classes=3, colormap="Viridis"),
+    ))
+    out = out_dir / "20_vector_styles.qgz"
+    _finish(proj, out, do_open)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 21 – Vector styling across geometry types (point, line, polygon)
+# ---------------------------------------------------------------------------
+
+@test
+def t21_vector_geometry_types(dem, slope, vector, out_dir, do_open=False) -> Path:
+    """Single-symbol, categorized, and graduated styles on point, line, and
+    polygon layers.
+    Expected: three groups (Point, Line, Polygon), each containing a
+    single-symbol layer (red fill/stroke, thick outline), a layer colored
+    by 'class', and a choropleth of 'value'.
+    """
+    from qgis_project import Layer, Project
+    from qgis_project.style import (
+        VectorStyleCategorized,
+        VectorStyleGraduated,
+        VectorStyleSingleSymbol,
+    )
+
+    proj = Project()
+    for geom_type, group in [("Polygon", "Polygon"), ("LineString", "Line"), ("Point", "Point")]:
+        data = _make_vector_grid(out_dir / f"grid_{group.lower()}.geojson", geom_type=geom_type)
+        proj.add_layer(Layer(
+            str(data), name="Single symbol", group=group,
+            style=VectorStyleSingleSymbol(color="red", outline_color="black", outline_width=1.0),
+        ))
+        proj.add_layer(Layer(
+            str(data), name="Categorized (class)", group=group,
+            style=VectorStyleCategorized(field="class", colormap="Spectral"),
+        ))
+        proj.add_layer(Layer(
+            str(data), name="Graduated (value)", group=group,
+            style=VectorStyleGraduated(field="value", num_classes=3, colormap="Viridis"),
+        ))
+
+    out = out_dir / "21_vector_geometry_types.qgz"
     _finish(proj, out, do_open)
     return out
 

@@ -11,7 +11,7 @@ import pickle
 
 from qgis.core import QgsRasterBandStats
 
-from qgis_project.style import RasterStyle
+from qgis_project.style import RasterStyle, VectorStyle
 
 
 class QgisLayerLinkError(Exception):
@@ -79,6 +79,10 @@ class Layer(_LayerMixin):
     overwrite_existing : bool
         If ``True``, replace an existing layer at the same group path;
         if ``False`` (default), skip silently.
+    style : VectorStyle or None
+        Vector styling to apply (e.g. ``VectorStyleSingleSymbol``,
+        ``VectorStyleCategorized``, ``VectorStyleGraduated``). If ``None``,
+        the QGIS default symbol is used. Ignored for raster files.
     """
 
     file: str
@@ -89,6 +93,8 @@ class Layer(_LayerMixin):
     name: str | None = None
 
     overwrite_existing: bool = False  # if layer is added, check whether to replace or ignore new layer on existing
+
+    style: VectorStyle | None = None
 
     # serialization methods (save/load)
     def save(self, filepath: str):

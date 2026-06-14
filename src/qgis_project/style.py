@@ -101,7 +101,6 @@ class RasterStyleSinglePseudocolor(RasterStyle):
             QgsColorRampShader,
             QgsRasterShader,
             QgsSingleBandPseudoColorRenderer,
-            QgsStyle,
         )
 
         qgis_layer = layer.qgis_layer
@@ -111,17 +110,7 @@ class RasterStyleSinglePseudocolor(RasterStyle):
         vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
         vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
 
-        style = QgsStyle.defaultStyle()
-        ramp_names = style.colorRampNames()
-        matched = next(
-            (n for n in ramp_names if n.lower() == self.colormap.lower()), None
-        )
-        if matched is None:
-            raise ValueError(
-                f"Color ramp {self.colormap!r} not found in QGIS style library. "
-                f"Run QgsStyle.defaultStyle().colorRampNames() to list available names."
-            )
-        ramp = style.colorRamp(matched)
+        ramp = _get_color_ramp(self.colormap)
 
         color_shader = QgsColorRampShader(vmin, vmax, ramp)
         color_shader.setColorRampType(QgsColorRampShader.Interpolated)
@@ -183,3 +172,179 @@ class RasterStyleMultiBandColor(RasterStyle):
 
         qgis_layer.setRenderer(renderer)
         super().set_style(layer)
+
+
+@dataclass
+class VectorStyle(Style):
+    """
+    Base class for vector layer styling.
+    """
+
+
+@dataclass
+class VectorStyleSingleSymbol(VectorStyle):
+    """
+    A single-symbol style for vector layers — every feature rendered identically.
+
+    Parameters
+    ----------
+    color : str | None
+        Fill (polygon), line, or marker color, e.g. ``"red"``, ``"#ff0000"``,
+        or ``"255,0,0,255"``. If ``None``, the QGIS default symbol color is kept.
+    outline_color : str | None
+        Outline/stroke color for polygon and marker symbols.
+    outline_width : float | None
+        Outline/stroke width in millimeters for polygon, line, and marker symbols.
+    """
+
+    color: str | None = None
+    outline_color: str | None = None
+    outline_width: float | None = None
+
+    def set_style(self, layer: "Layer"):
+        from qgis.core import QgsSingleSymbolRenderer
+        from qgis.PyQt.QtGui import QColor
+
+        qgis_layer = layer.qgis_layer
+        symbol = qgis_layer.renderer().symbol().clone()
+
+        if self.color is not None:
+            symbol.setColor(QColor(self.color))
+        for i in range(symbol.symbolLayerCount()):
+            symbol_layer = symbol.symbolLayer(i)
+            if self.outline_color is not None and hasattr(symbol_layer, "setStrokeColor"):
+                symbol_layer.setStrokeColor(QColor(self.outline_color))
+            if self.outline_width is not None and hasattr(symbol_layer, "setStrokeWidth"):
+                symbol_layer.setStrokeWidth(self.outline_width)
+
+        qgis_layer.setRenderer(QgsSingleSymbolRenderer(symbol))
+        super().set_style(layer)
+
+
+@dataclass
+class VectorStyleCategorized(VectorStyle):
+    """
+    A categorized style for vector layers — one color per unique attribute value.
+
+    Parameters
+    ----------
+    field : str
+        Name of the attribute field to categorize by.
+    colormap : str
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Spectral"``,
+        ``"RdYlBu"``, ``"Turbo"``. Run
+        ``QgsStyle.defaultStyle().colorRampNames()`` to see all available names.
+    """
+
+    field: str = ""
+    colormap: str = "Spectral"
+
+    def set_style(self, layer: "Layer"):
+        from qgis.core import (
+            QgsCategorizedSymbolRenderer,
+            QgsRendererCategory,
+            QgsSymbol,
+        )
+
+        qgis_layer = layer.qgis_layer
+        if not self.field:
+            raise ValueError("VectorStyleCategorized requires 'field' to be set.")
+
+        if qgis_layer.fields().indexOf(self.field) < 0:
+            raise ValueError(
+                f"Field {self.field!r} not found on layer {layer.get_layer_name()!r}."
+            )
+
+        ramp = _get_color_ramp(self.colormap)
+
+        values = sorted(
+            {f[self.field] for f in qgis_layer.getFeatures()},
+            key=lambda v: (v is None, v),
+        )
+
+        n = len(values)
+        categories = []
+        for i, value in enumerate(values):
+            symbol = QgsSymbol.defaultSymbol(qgis_layer.geometryType())
+            symbol.setColor(ramp.color(i / (n - 1) if n > 1 else 0.0))
+            categories.append(QgsRendererCategory(value, symbol, str(value)))
+
+        qgis_layer.setRenderer(QgsCategorizedSymbolRenderer(self.field, categories))
+        super().set_style(layer)
+
+
+@dataclass
+class VectorStyleGraduated(VectorStyle):
+    """
+    A graduated (choropleth) style for vector layers — equal-interval color
+    classes based on a numeric attribute.
+
+    Parameters
+    ----------
+    field : str
+        Name of the numeric attribute field to classify.
+    num_classes : int
+        Number of equal-width classes.
+    vmin : float | None
+        Lower bound of the classification range. If ``None``, uses the
+        field's minimum value.
+    vmax : float | None
+        Upper bound of the classification range. If ``None``, uses the
+        field's maximum value.
+    colormap : str
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Viridis"``,
+        ``"Spectral"``, ``"RdYlBu"``. Run
+        ``QgsStyle.defaultStyle().colorRampNames()`` to see all available names.
+    """
+
+    field: str = ""
+    num_classes: int = 5
+    vmin: float | None = None
+    vmax: float | None = None
+    colormap: str = "Viridis"
+
+    def set_style(self, layer: "Layer"):
+        from qgis.core import QgsGraduatedSymbolRenderer, QgsRendererRange, QgsSymbol
+
+        qgis_layer = layer.qgis_layer
+        if not self.field:
+            raise ValueError("VectorStyleGraduated requires 'field' to be set.")
+
+        idx = qgis_layer.fields().indexOf(self.field)
+        if idx < 0:
+            raise ValueError(
+                f"Field {self.field!r} not found on layer {layer.get_layer_name()!r}."
+            )
+
+        vmin = self.vmin if self.vmin is not None else qgis_layer.minimumValue(idx)
+        vmax = self.vmax if self.vmax is not None else qgis_layer.maximumValue(idx)
+
+        ramp = _get_color_ramp(self.colormap)
+
+        n = self.num_classes
+        step = (vmax - vmin) / n
+        ranges = []
+        for i in range(n):
+            lower = vmin + i * step
+            upper = vmax if i == n - 1 else vmin + (i + 1) * step
+            symbol = QgsSymbol.defaultSymbol(qgis_layer.geometryType())
+            symbol.setColor(ramp.color(i / (n - 1) if n > 1 else 0.0))
+            ranges.append(QgsRendererRange(lower, upper, symbol, f"{lower:.2f} - {upper:.2f}"))
+
+        qgis_layer.setRenderer(QgsGraduatedSymbolRenderer(self.field, ranges))
+        super().set_style(layer)
+
+
+def _get_color_ramp(colormap: str):
+    """Look up a QGIS built-in color ramp by name, case-insensitive."""
+    from qgis.core import QgsStyle
+
+    style = QgsStyle.defaultStyle()
+    ramp_names = style.colorRampNames()
+    matched = next((n for n in ramp_names if n.lower() == colormap.lower()), None)
+    if matched is None:
+        raise ValueError(
+            f"Color ramp {colormap!r} not found in QGIS style library. "
+            f"Run QgsStyle.defaultStyle().colorRampNames() to list available names."
+        )
+    return style.colorRamp(matched)

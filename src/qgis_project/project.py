@@ -99,7 +99,7 @@ class Project:
             logger.error(f"Failed to load layer: {source}")
             return
 
-        if hasattr(layer, "style"):
+        if getattr(layer, "style", None) is not None:
             layer.style.set_style(layer)
 
         layer_path = layer.get_path()
