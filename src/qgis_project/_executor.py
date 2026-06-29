@@ -1,8 +1,8 @@
 """
 Executor entry point — runs inside the QGIS-bundled Python.
 
-SubprocessProject injects qgis_project and loguru into PYTHONPATH before
-launching this script, so the full qgis_project API is available here.
+SubprocessProject injects qgis_project into PYTHONPATH before launching
+this script, so the full qgis_project API is available here.
 The spec JSON carries the layer/operation/state data; this script simply
 reconstructs the objects and delegates to Project — no duplicated logic.
 

@@ -22,12 +22,9 @@ from pathlib import Path
 # Allow running from the repo root without installing the package.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# Optionally configure QGIS env for standalone installs.
-try:
-    from experiments.utils import setup_local_python
-    setup_local_python()
-except Exception:
-    pass
+# Importing qgis_project configures the QGIS environment automatically (the
+# in-process bindings are set up on first Project() use), so no manual env
+# bootstrapping is needed here.
 
 
 # ---------------------------------------------------------------------------
@@ -110,8 +107,8 @@ def _make_vector_grid(path: Path, rows: int = 3, cols: int = 3, geom_type: str =
     """Write a GeoJSON grid with categorical and numeric attributes.
 
     *geom_type* controls the feature geometry per grid cell:
-    ``"Polygon"`` (the cell square), ``"Point"`` (the cell center), or
-    ``"LineString"`` (the cell diagonal).
+    `"Polygon"` (the cell square), `"Point"` (the cell center), or
+    `"LineString"` (the cell diagonal).
     """
     classes = ["low", "medium", "high"]
     features = []

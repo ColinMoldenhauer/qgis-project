@@ -87,8 +87,8 @@ class RasterStyleSinglePseudocolor(RasterStyle):
     Parameters
     ----------
     colormap : str
-        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Viridis"``,
-        ``"Spectral"``, ``"RdYlBu"``. Run ``QgsStyle.defaultStyle().colorRampNames()``
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. `"Viridis"`,
+        `"Spectral"`, `"RdYlBu"`. Run `QgsStyle.defaultStyle().colorRampNames()``
         to see all available names.
     """
 
@@ -131,8 +131,8 @@ class RasterStyleMultiBandColor(RasterStyle):
 
     Maps three raster bands to the red, green, and blue channels, each with
     an independent contrast stretch — e.g. true-color or false-color
-    composites. Requires ``layer.band_idx`` to be a list of three band
-    numbers, e.g. ``[1, 2, 3]`` for (R, G, B).
+    composites. Requires `layer.band_idx` to be a list of three band
+    numbers, e.g. `[1, 2, 3]` for (R, G, B).
     """
 
     def set_style(self, layer: "Layer"):
@@ -187,8 +187,8 @@ class VectorStyleSingleSymbol(VectorStyle):
     Parameters
     ----------
     color : str | None
-        Fill (polygon), line, or marker color, e.g. ``"red"``, ``"#ff0000"``,
-        or ``"255,0,0,255"``. If ``None``, the QGIS default symbol color is kept.
+        Fill (polygon), line, or marker color, e.g. `"red"`, `"#ff0000"`,
+        or `"255,0,0,255"`. If `None`, the QGIS default symbol color is kept.
     outline_color : str | None
         Outline/stroke color for polygon and marker symbols.
     outline_width : float | None
@@ -196,9 +196,9 @@ class VectorStyleSingleSymbol(VectorStyle):
     size : float | None
         Marker size in millimeters. Only applies to point layers.
     marker_shape : str | None
-        Marker shape for point layers, e.g. ``"circle"``, ``"square"``,
-        ``"triangle"``, ``"star"``. See
-        ``QgsSimpleMarkerSymbolLayerBase.decodeShape()`` for all accepted names.
+        Marker shape for point layers, e.g. `"circle"`, `"square"`,
+        `"triangle"`, `"star"`. See
+        `QgsSimpleMarkerSymbolLayerBase.decodeShape()` for all accepted names.
     """
 
     color: str | None = None
@@ -244,9 +244,9 @@ class VectorStyleCategorized(VectorStyle):
     field : str
         Name of the attribute field to categorize by.
     colormap : str
-        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Spectral"``,
-        ``"RdYlBu"``, ``"Turbo"``. Run
-        ``QgsStyle.defaultStyle().colorRampNames()`` to see all available names.
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. `"Spectral"`,
+        `"RdYlBu"`, `"Turbo"`. Run
+        `QgsStyle.defaultStyle().colorRampNames()` to see all available names.
     """
 
     field: str = ""
@@ -299,15 +299,15 @@ class VectorStyleGraduated(VectorStyle):
     num_classes : int
         Number of equal-width classes.
     vmin : float | None
-        Lower bound of the classification range. If ``None``, uses the
+        Lower bound of the classification range. If `None`, uses the
         field's minimum value.
     vmax : float | None
-        Upper bound of the classification range. If ``None``, uses the
+        Upper bound of the classification range. If `None`, uses the
         field's maximum value.
     colormap : str
-        Name of a QGIS built-in color ramp (case-insensitive), e.g. ``"Viridis"``,
-        ``"Spectral"``, ``"RdYlBu"``. Run
-        ``QgsStyle.defaultStyle().colorRampNames()`` to see all available names.
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. `"Viridis"`,
+        `"Spectral"`, `"RdYlBu"`. Run
+        `QgsStyle.defaultStyle().colorRampNames()` to see all available names.
     """
 
     field: str = ""
@@ -369,20 +369,20 @@ class VectorLabels:
     Attribute-based labels for vector layers.
 
     Labeling is independent of the layer's renderer/style and can be combined
-    with any ``VectorStyle``.
+    with any `VectorStyle`.
 
     Parameters
     ----------
     field : str
         Name of the attribute field to use as label text, or a QGIS
-        expression if ``is_expression`` is ``True``.
+        expression if `is_expression` is `True`.
     size : float
         Font size in points.
     color : str
-        Text color, e.g. ``"black"``, ``"#000000"``.
+        Text color, e.g. `"black"`, `"#000000"`.
     is_expression : bool
-        If ``True``, ``field`` is evaluated as a QGIS expression rather than
-        a plain field name, e.g. ``"name || ' (' || value || ')'"``.
+        If `True`, `field` is evaluated as a QGIS expression rather than
+        a plain field name, e.g. `"name || ' (' || value || ')'"`.
     """
 
     field: str = ""

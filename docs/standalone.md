@@ -6,7 +6,7 @@ bindings are compiled C++ extensions that live *inside* a QGIS installation and
 are tied to the exact Python version, Qt version, and GDAL/PROJ libraries that
 install was built against.
 
-`qgis-project` itself is pure Python with a single dependency (`loguru`); all the
+`qgis-project` itself is pure Python with no runtime dependencies; all the
 real work happens in PyQGIS. So before anything runs, you need a way to reach
 those bindings. There are three ways to do that. The package supports all three
 and picks one automatically (see [Launch modes](#launch-modes-forcing-the-choice)).
@@ -41,8 +41,8 @@ small description of your project to a temporary file and hands it to QGIS's
 bundled Python through the platform launcher (`python-qgis.bat` on Windows,
 `python-qgis.sh` elsewhere), which runs it in a child process.
 
-**Why it's nice.** Your own environment stays tiny — just `qgis-project` and
-`loguru`. You never install the heavy `qgis` conda package, and you never hit
+**Why it's nice.** Your own environment stays tiny — just `qgis-project`
+itself. You never install the heavy `qgis` conda package, and you never hit
 Python/Qt/GDAL version conflicts, because the code executes inside the exact
 environment QGIS shipped. One QGIS install on the machine is enough.
 
@@ -105,7 +105,7 @@ Ready-made env: [`environments/strategy1-standalone.yml`](https://github.com/Col
 | Strategy / mode              | 2 / `local`            | 3 / `env`            | 1 / `env`             |
 | Needs QGIS desktop install   | ✅ yes                 | no                   | ✅ yes                |
 | Needs `qgis` from conda      | no                     | ✅ yes               | no                    |
-| Your Python env              | tiny (just `loguru`)   | large (QGIS stack)   | tiny, version-locked  |
+| Your Python env              | tiny (no deps)         | large (QGIS stack)   | tiny, version-locked  |
 | Code runs in                 | QGIS bundled Python (subprocess) | your interpreter | your interpreter |
 | Live QGIS objects            | no                     | ✅ yes               | ✅ yes                |
 | Main risk                    | none (process-isolated)| disk size, duplicate stacks | version/ABI conflicts |

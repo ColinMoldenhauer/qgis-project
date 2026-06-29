@@ -4,13 +4,13 @@ Module to handle QGIS project functionality.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
-from loguru import logger
 from qgis.core import (
     QgsApplication,
     QgsCoordinateReferenceSystem,
@@ -33,6 +33,8 @@ from qgis_project.utils import (
     normalize_crs,
     remove_layer_by_path,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Project:
@@ -151,11 +153,11 @@ class Project:
     def add_layer(self, layer: Layer | WebLayer | str, **kwargs):
         """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer.
 
-        When *layer* is a string path, extra keyword arguments (``name``, ``group``,
-        ``visible``, ``crs``, ``overwrite_existing``, ``style``, ...) are forwarded
+        When *layer* is a string path, extra keyword arguments (`name`, `group`,
+        `visible`, `crs`, `overwrite_existing`, `style`, ...) are forwarded
         to the layer constructor. A :class:`RasterLayer` is built automatically
         when a raster-specific keyword is given (a :class:`RasterStyle` style,
-        ``band_idx``, or ``statistics_kwargs``); otherwise a plain :class:`Layer`.
+        `band_idx`, or `statistics_kwargs`); otherwise a plain :class:`Layer`.
         """
         if isinstance(layer, str):
             layer = layer_from_path(layer, **kwargs)
@@ -173,7 +175,7 @@ class Project:
         Parameters
         ----------
         crs : str or int
-            EPSG integer (e.g. ``3857``) or authority string (e.g. ``"EPSG:3857"``).
+            EPSG integer (e.g. `3857`) or authority string (e.g. `"EPSG:3857"`).
         """
         self._project.setCrs(QgsCoordinateReferenceSystem(normalize_crs(crs)))
 
@@ -190,10 +192,10 @@ class Project:
         Parameters
         ----------
         algorithm : str
-            QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+            QGIS processing algorithm identifier, e.g. `"native:buffer"`.
         params : dict
-            Algorithm parameters. Must include ``"INPUT"`` and typically
-            ``"OUTPUT"``. Pass a file path for persistent outputs. ``"memory:"``
+            Algorithm parameters. Must include `"INPUT"` and typically
+            `"OUTPUT"`. Pass a file path for persistent outputs. `"memory:"``
             is silently redirected to a temporary GeoPackage so the layer
             survives project save/load.
         name : str
@@ -336,16 +338,16 @@ class Project:
 
         Behaviour depends on context:
 
-        - **Jupyter notebook**: returns an ``IPython.display.Image`` that
+        - **Jupyter notebook**: returns an `IPython.display.Image` that
           renders inline in the cell output.
-        - **path given**: saves a PNG to that path and returns a ``Path``.
+        - **path given**: saves a PNG to that path and returns a `Path`.
         - **Script (no Jupyter, no path)**: saves to a temporary file and
-          returns its ``Path``.
+          returns its `Path`.
 
         Parameters
         ----------
         path : str or None
-            Destination file path.  If ``None``, auto-detected from context.
+            Destination file path.  If `None`, auto-detected from context.
         """
         from pathlib import Path as _Path
         from qgis.PyQt.QtCore import QBuffer, QIODevice
@@ -463,8 +465,8 @@ class Project:
         Parameters
         ----------
         *path : str
-            Group name sequence, e.g. ``collapse_group("terrain")`` or
-            ``collapse_group("terrain", "raw")`` for a nested group.
+            Group name sequence, e.g. `collapse_group("terrain")` or
+            `collapse_group("terrain", "raw")` for a nested group.
         """
         group = self._find_group(list(path))
         if group is not None:

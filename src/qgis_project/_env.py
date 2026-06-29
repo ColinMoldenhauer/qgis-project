@@ -6,13 +6,14 @@ contains no `from qgis` imports. It is the first thing __init__.py imports so
 that subsequent modules with module-level qgis imports can succeed.
 """
 
+import logging
 import os
 import platform
 import shutil
 import sys
 from pathlib import Path
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 # os.add_dll_directory() returns a handle that must stay alive to keep the
 # directory on the search path. Store handles here to prevent GC.
@@ -80,8 +81,8 @@ def find_qgis_launcher():
     """Return the path to the platform-specific QGIS Python launcher, or None.
 
     The launcher is the script that sets up the QGIS environment and then
-    runs the bundled Python interpreter — ``python-qgis.bat`` on Windows,
-    ``python-qgis.sh`` on Linux, and the macOS shell wrapper.  It is used
+    runs the bundled Python interpreter — `python-qgis.bat` on Windows,
+    `python-qgis.sh` on Linux, and the macOS shell wrapper.  It is used
     by SubprocessProject to delegate execution to the QGIS Python.
     """
     system = platform.system()

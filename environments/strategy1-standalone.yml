@@ -1,0 +1,36 @@
+# Strategy 1 — standalone QGIS, imported IN-PROCESS by an external Python
+#                                                  (QGIS_PROJECT_LAUNCH_MODE=env)
+#
+# This is the awkward one. You point an external interpreter at a separately
+# installed *standalone* QGIS and let qgis_project wire its bindings + native
+# DLLs into the running process (see _env._setup_windows). It avoids spawning a
+# subprocess (Strategy 2) and avoids a multi-hundred-MB conda qgis (Strategy 3),
+# but it only works under one strict condition:
+#
+#   >>> this env's Python MUST exactly match the CPython that your standalone
+#       QGIS bundles (ABI-locked .pyd/.so bindings — 3.9 cannot load 3.12). <<<
+#
+# QGIS release        bundled Python   ->  set below
+#   3.28 / 3.34 LTR        3.9              python=3.9
+#   3.40 LTR               3.12             python=3.12
+#   (check yours:  <QGIS>/apps/Python3XX  on Windows)
+#
+# Equally important — do NOT install qgis, pyqt, qt, or gdal here. Those must
+# come from the standalone install (the package puts them on sys.path / PATH);
+# a second copy in this env causes Qt/GDAL DLL clashes. Keep the env bare.
+#
+# Then: set QGIS_PROJECT_LAUNCH_MODE=env, and QGIS_PREFIX_PATH if not auto-detected.
+#
+# Honestly, prefer Strategy 3 (strategy3-conda.yml) unless you specifically need
+# to reuse an existing desktop QGIS install without a second copy of the stack.
+#
+# Create from the repo root:  conda env create -f environments/strategy1-standalone.yml
+name: qgis-project-standalone
+channels:
+  - conda-forge
+dependencies:
+  - python =3.9     # <-- MATCH your standalone QGIS's bundled Python (see table)
+  - pip
+  - pip:
+      - --no-deps
+      - -e .

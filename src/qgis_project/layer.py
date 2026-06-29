@@ -64,40 +64,40 @@ class Layer(_LayerMixin):
     Parameters
     ----------
     file : str
-        Path to the layer file (``".shp"``, ``".geojson"``, ``".gpkg"``,
-        ``".tif"``, ``".tiff"``, ``".img"``).
+        Path to the layer file (`".shp"`, `".geojson"`, `".gpkg"`,
+        `".tif"`, `".tiff"`, `".img"`).
     crs : str or int or None
         Override the layer CRS. Accepts an EPSG integer or authority string
-        (e.g. ``"EPSG:4326"``). If ``None``, the layer's native CRS is used.
+        (e.g. `"EPSG:4326"`). If `None`, the layer's native CRS is used.
     visible : bool
         Whether the layer is visible when the project opens.
     group : str or list of str or None
         Layer group path. A plain string places the layer in a top-level group;
-        a list creates a nested hierarchy, e.g. ``["terrain", "raw"]``.
+        a list creates a nested hierarchy, e.g. `["terrain", "raw"]`.
     name : str or None
         Display name in the layer tree. Defaults to the file's basename.
     overwrite_existing : bool
-        If ``True``, replace an existing layer at the same group path;
-        if ``False`` (default), skip silently.
+        If `True`, replace an existing layer at the same group path;
+        if `False` (default), skip silently.
     style : VectorStyle or None
-        Vector styling to apply (e.g. ``VectorStyleSingleSymbol``,
-        ``VectorStyleCategorized``, ``VectorStyleGraduated``). If ``None``,
+        Vector styling to apply (e.g. `VectorStyleSingleSymbol`,
+        `VectorStyleCategorized`, `VectorStyleGraduated`). If `None`,
         the QGIS default symbol is used. Ignored for raster files.
     filter : str or None
-        QGIS expression used as a subset filter (``QgsVectorLayer.setSubsetString``),
-        e.g. ``"population > 1000"``. Only the matching features are loaded,
+        QGIS expression used as a subset filter (`QgsVectorLayer.setSubsetString`),
+        e.g. `"population > 1000"`. Only the matching features are loaded,
         rendered, and included in extent/statistics calculations. Ignored for
         raster files.
     min_scale : float or None
         Most zoomed-out scale denominator at which the layer is still visible,
-        e.g. ``100000`` for 1:100,000. Zooming out further (larger denominator)
-        hides the layer. If ``None``, no zoomed-out limit.
+        e.g. `100000` for 1:100,000. Zooming out further (larger denominator)
+        hides the layer. If `None`, no zoomed-out limit.
     max_scale : float or None
         Most zoomed-in scale denominator at which the layer is still visible,
-        e.g. ``1000`` for 1:1,000. Zooming in further (smaller denominator)
-        hides the layer. If ``None``, no zoomed-in limit.
+        e.g. `1000` for 1:1,000. Zooming in further (smaller denominator)
+        hides the layer. If `None`, no zoomed-in limit.
     labels : VectorLabels or None
-        Attribute-based labels to show on the layer. Independent of ``style``.
+        Attribute-based labels to show on the layer. Independent of `style`.
         Ignored for raster files.
     """
 
@@ -173,10 +173,10 @@ def layer_from_path(file: str, **kwargs) -> Layer:
     """Build a :class:`Layer` or :class:`RasterLayer` from a file path and kwargs.
 
     Chooses :class:`RasterLayer` when a raster-specific keyword is present
-    (a :class:`RasterStyle` style, ``band_idx``, or ``statistics_kwargs``);
+    (a :class:`RasterStyle` style, `band_idx`, or `statistics_kwargs`);
     otherwise returns a plain :class:`Layer`. This lets callers pass raster
-    styling directly to ``add_layer`` without wrapping the path in a
-    ``RasterLayer`` themselves.
+    styling directly to `add_layer` without wrapping the path in a
+    `RasterLayer` themselves.
     """
     is_raster = (
         isinstance(kwargs.get("style"), RasterStyle)
@@ -194,15 +194,15 @@ class ProcessingOp:
     Parameters
     ----------
     algorithm : str
-        QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+        QGIS processing algorithm identifier, e.g. `"native:buffer"`.
     params : dict
-        Algorithm parameters passed directly to ``processing.run()``.
-        Must include ``"INPUT"`` and, for most algorithms, ``"OUTPUT"``.
-        Set ``"OUTPUT"`` to ``"memory:"`` for an in-memory vector result,
-        or a file path (e.g. ``"/tmp/out.gpkg"``) for a persistent output.
+        Algorithm parameters passed directly to `processing.run()`.
+        Must include `"INPUT"` and, for most algorithms, `"OUTPUT"`.
+        Set `"OUTPUT"` to `"memory:"` for an in-memory vector result,
+        or a file path (e.g. `"/tmp/out.gpkg"`) for a persistent output.
     name : str
         Name for the result layer in the layer tree.
-        Defaults to the algorithm identifier tail (e.g. ``"buffer"``).
+        Defaults to the algorithm identifier tail (e.g. `"buffer"`).
     group : str or list of str or None
         Layer group path, same syntax as :class:`Layer`.
     visible : bool

@@ -11,22 +11,23 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from loguru import logger
-
 from .layer import Layer, ProcessingOp, WebLayer, layer_from_path
 from .utils import normalize_crs
+
+logger = logging.getLogger(__name__)
 
 
 class SubprocessProject:
     """Accumulates a layer spec and executes it via the QGIS bundled Python.
 
-    The interface mirrors ``Project`` so user code is strategy-agnostic.
+    The interface mirrors `Project` so user code is strategy-agnostic.
     """
 
     def __init__(self, file: str | None = None, crs: str | int | None = None):
@@ -67,7 +68,7 @@ class SubprocessProject:
         Parameters
         ----------
         crs : str or int
-            EPSG integer (e.g. ``3857``) or authority string (e.g. ``"EPSG:3857"``).
+            EPSG integer (e.g. `3857`) or authority string (e.g. `"EPSG:3857"`).
         """
         self._crs = normalize_crs(crs)
 
@@ -77,10 +78,10 @@ class SubprocessProject:
         Parameters
         ----------
         algorithm : str
-            QGIS processing algorithm identifier, e.g. ``"native:buffer"``.
+            QGIS processing algorithm identifier, e.g. `"native:buffer"`.
         params : dict
-            Algorithm parameters. Must include ``"INPUT"`` and typically
-            ``"OUTPUT"``. Use ``"OUTPUT": "memory:"`` for in-memory vector
+            Algorithm parameters. Must include `"INPUT"` and typically
+            `"OUTPUT"`. Use `"OUTPUT": "memory:"` for in-memory vector
             results, or a file path for persistent outputs.
         name : str
             Name for the result layer. Defaults to the algorithm tail.
@@ -149,8 +150,8 @@ class SubprocessProject:
         Parameters
         ----------
         *path : str
-            Group name sequence, e.g. ``collapse_group("terrain")`` or
-            ``collapse_group("terrain", "raw")`` for a nested group.
+            Group name sequence, e.g. `collapse_group("terrain")` or
+            `collapse_group("terrain", "raw")` for a nested group.
         """
         self._group_states.append({"path": list(path), "expanded": False})
 
@@ -172,22 +173,19 @@ class SubprocessProject:
 
     @staticmethod
     def _extra_pythonpath() -> str:
-        """Return a PYTHONPATH fragment containing qgis_project and loguru.
+        """Return a PYTHONPATH fragment containing the qgis_project package.
 
-        Only these two directories are injected into the bundled Python's
-        environment — nothing else from the user's sys.path — to minimise
-        the risk of package conflicts with QGIS's own bundled libraries.
+        Only this directory is injected into the bundled Python's environment —
+        nothing else from the user's sys.path — to minimise the risk of package
+        conflicts with QGIS's own bundled libraries. qgis_project has no runtime
+        dependencies of its own (it logs via the stdlib `logging` module), so
+        nothing else needs to come along.
         """
         import qgis_project as _pkg
-        import loguru as _loguru
 
         # parent.parent gives the directory that *contains* the package folder
         # (i.e. site-packages or src/), not the package folder itself.
-        dirs = {
-            str(Path(_pkg.__file__).parent.parent),
-            str(Path(_loguru.__file__).parent.parent),
-        }
-        return os.pathsep.join(dirs)
+        return str(Path(_pkg.__file__).parent.parent)
 
     def _run(self, output: str, action: str) -> None:
         from ._env import find_qgis_launcher
@@ -217,6 +215,11 @@ class SubprocessProject:
         env = os.environ.copy()
         existing = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = self._extra_pythonpath() + (os.pathsep + existing if existing else "")
+        # The executor runs in QGIS's bundled Python, where qgis is importable,
+        # so it must use the in-process backend. Pin the mode explicitly so a
+        # parent QGIS_PROJECT_LAUNCH_MODE=local does not get inherited and recurse
+        # into another subprocess launch.
+        env["QGIS_PROJECT_LAUNCH_MODE"] = "env"
 
         try:
             # On Windows, .bat files must be invoked through cmd.exe.

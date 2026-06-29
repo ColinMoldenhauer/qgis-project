@@ -32,7 +32,7 @@ proj.open()     # launch QGIS for visual inspection
 pip install qgis-project
 ```
 
-`qgis-project` is pure Python (only `loguru`); the heavy lifting is done by QGIS,
+`qgis-project` is pure Python (no runtime dependencies); the heavy lifting is done by QGIS,
 which is **not on PyPI**. There are two good ways to provide it:
 
 - **A — drive a local QGIS install:** if you have the QGIS desktop app, it is

@@ -34,7 +34,7 @@ proj.open()     # launch QGIS for visual inspection
 
 ## Installation
 
-`qgis-project` is pure Python with a single dependency (`loguru`). The real work
+`qgis-project` is pure Python with no runtime dependencies. The real work
 is done by QGIS's Python API, which is **not on PyPI** and must be available
 separately. There are two good ways to set this up — pick based on whether you
 already use the QGIS desktop application.

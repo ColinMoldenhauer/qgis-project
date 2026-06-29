@@ -26,9 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = [
-  "loguru",
-]
+dependencies = []
 
 # QGIS is not on PyPI and must be installed separately.
 # Recommended: install via conda-forge (`conda install -c conda-forge qgis`)

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from loguru import logger
+import logging
+
 from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_crs(crs: str | int) -> str:
     """Return a CRS authority string, normalizing bare EPSG integers.
 
-    Examples: ``4326`` → ``"EPSG:4326"``, ``"EPSG:3857"`` → ``"EPSG:3857"``.
+    Examples: `4326` → `"EPSG:4326"`, `"EPSG:3857"` → `"EPSG:3857"`.
     """
     return f"EPSG:{crs}" if isinstance(crs, int) else crs
 

@@ -11,9 +11,6 @@ dependencies:
   - qgis>=3.34          # LTR or later; conda-forge resolves latest available
   - numpy
 
-  # Runtime dep of qgis-project
-  - loguru
-
   # Jupyter
   - ipykernel           # register this env as a Jupyter kernel
   - jupyterlab          # notebook server — comment out if unneeded
