@@ -21,12 +21,12 @@ cartographic mapping — for that, use QGIS itself or a dedicated mapping
 library.
 
 ```python
-from qgis_project import Project, RasterLayer, RasterStyleBW
+from qgis_project import Project, RasterStyleBW
 
 proj = Project()
 proj.add_layer("dem.tif")                                    # raster, auto-detected
 proj.add_layer("boundaries.geojson")                         # vector, auto-detected
-proj.add_layer(RasterLayer("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000)))
+proj.add_layer("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000))  # style a path directly
 proj.save("output.qgz")
 proj.open()     # launch QGIS for visual inspection
 ```
@@ -96,6 +96,16 @@ layer = RasterLayer(
     style=RasterStyleBW(vmin=0, vmax=3000),
 )
 proj.add_layer(layer)
+```
+
+You can also pass a path and styling straight to `add_layer` without
+constructing a `RasterLayer` yourself — a `RasterLayer` is built automatically
+when a raster-specific keyword (a `RasterStyle`, `band_idx`, or
+`statistics_kwargs`) is given:
+
+```python
+proj.add_layer("dem.tif", name="Elevation", group="terrain",
+               style=RasterStyleBW(vmin=0, vmax=3000))
 ```
 
 If `vmin`/`vmax` are omitted they are computed from the layer data.

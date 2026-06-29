@@ -25,7 +25,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsMapCanvas
 
-from qgis_project.layer import Layer, WebLayer
+from qgis_project.layer import Layer, WebLayer, layer_from_path
 from qgis_project.utils import (
     add_or_get_group,
     get_layer_by_idx,
@@ -152,10 +152,13 @@ class Project:
         """Add a layer to the project. Accepts a file path string, a Layer, or a WebLayer.
 
         When *layer* is a string path, extra keyword arguments (``name``, ``group``,
-        ``visible``, ``crs``, ``overwrite_existing``) are forwarded to :class:`Layer`.
+        ``visible``, ``crs``, ``overwrite_existing``, ``style``, ...) are forwarded
+        to the layer constructor. A :class:`RasterLayer` is built automatically
+        when a raster-specific keyword is given (a :class:`RasterStyle` style,
+        ``band_idx``, or ``statistics_kwargs``); otherwise a plain :class:`Layer`.
         """
         if isinstance(layer, str):
-            layer = Layer(layer, **kwargs)
+            layer = layer_from_path(layer, **kwargs)
         self._add_layer(layer)
 
     def remove_layer(self, layer: Layer | str):

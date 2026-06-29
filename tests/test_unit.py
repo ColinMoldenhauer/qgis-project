@@ -4,8 +4,14 @@ Unit tests — no QGIS installation required.
 import pytest
 
 # Import directly from submodules so this file is runnable without QGIS.
-from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer, WebLayer
-from qgis_project.style import RasterStyle, RasterStyleBW, RasterStyleSinglePseudocolor, Style
+from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer, WebLayer, layer_from_path
+from qgis_project.style import (
+    RasterStyle,
+    RasterStyleBW,
+    RasterStyleSinglePseudocolor,
+    Style,
+    VectorStyleSingleSymbol,
+)
 from qgis_project.utils import normalize_crs
 
 
@@ -75,6 +81,36 @@ def test_raster_layer_link_error_on_min():
 def test_raster_layer_link_error_on_max():
     with pytest.raises(QgisLayerLinkError):
         RasterLayer(file="dem.tif").get_layer_max()
+
+
+# ---------------------------------------------------------------------------
+# layer_from_path
+# ---------------------------------------------------------------------------
+
+def test_layer_from_path_plain_layer():
+    layer = layer_from_path("boundaries.geojson")
+    assert type(layer) is Layer
+    assert layer.file == "boundaries.geojson"
+
+def test_layer_from_path_vector_style_stays_layer():
+    layer = layer_from_path("regions.geojson", style=VectorStyleSingleSymbol(color="red"))
+    assert type(layer) is Layer
+
+def test_layer_from_path_raster_style_builds_raster_layer():
+    layer = layer_from_path("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000))
+    assert type(layer) is RasterLayer
+    assert isinstance(layer.style, RasterStyleBW)
+
+def test_layer_from_path_band_idx_builds_raster_layer():
+    layer = layer_from_path("rgb.tif", band_idx=[1, 2, 3])
+    assert type(layer) is RasterLayer
+    assert layer.band_idx == [1, 2, 3]
+
+def test_layer_from_path_forwards_common_kwargs():
+    layer = layer_from_path("dem.tif", name="Elevation", group="terrain", visible=False)
+    assert layer.name == "Elevation"
+    assert layer.group == "terrain"
+    assert layer.visible is False
 
 
 # ---------------------------------------------------------------------------

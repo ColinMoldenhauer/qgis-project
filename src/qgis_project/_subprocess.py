@@ -19,7 +19,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from .layer import Layer, ProcessingOp, WebLayer
+from .layer import Layer, ProcessingOp, WebLayer, layer_from_path
 from .utils import normalize_crs
 
 
@@ -43,10 +43,15 @@ class SubprocessProject:
     # Layer management
     # ------------------------------------------------------------------
 
-    def add_layer(self, layer: Layer | WebLayer | str) -> None:
-        """Append a layer to the pending spec."""
+    def add_layer(self, layer: Layer | WebLayer | str, **kwargs) -> None:
+        """Append a layer to the pending spec.
+
+        When *layer* is a string path, extra keyword arguments are forwarded to
+        the layer constructor; a :class:`RasterLayer` is built automatically when
+        a raster-specific keyword is given (see :meth:`Project.add_layer`).
+        """
         if isinstance(layer, str):
-            layer = Layer(layer)
+            layer = layer_from_path(layer, **kwargs)
         self._layers.append(layer)
 
     def remove_layer(self, layer: Layer | str) -> None:

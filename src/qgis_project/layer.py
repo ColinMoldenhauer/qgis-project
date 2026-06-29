@@ -169,6 +169,24 @@ class RasterLayer(Layer):
         self.band_idx = band_idx
 
 
+def layer_from_path(file: str, **kwargs) -> Layer:
+    """Build a :class:`Layer` or :class:`RasterLayer` from a file path and kwargs.
+
+    Chooses :class:`RasterLayer` when a raster-specific keyword is present
+    (a :class:`RasterStyle` style, ``band_idx``, or ``statistics_kwargs``);
+    otherwise returns a plain :class:`Layer`. This lets callers pass raster
+    styling directly to ``add_layer`` without wrapping the path in a
+    ``RasterLayer`` themselves.
+    """
+    is_raster = (
+        isinstance(kwargs.get("style"), RasterStyle)
+        or "band_idx" in kwargs
+        or "statistics_kwargs" in kwargs
+    )
+    cls = RasterLayer if is_raster else Layer
+    return cls(file, **kwargs)
+
+
 @dataclass
 class ProcessingOp:
     """A QGIS Processing algorithm to run, whose result is added to the project as a layer.
