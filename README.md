@@ -34,26 +34,54 @@ proj.open()     # launch QGIS for visual inspection
 
 ## Installation
 
-Install the package:
+`qgis-project` is pure Python with a single dependency (`loguru`). The real work
+is done by QGIS's Python API, which is **not on PyPI** and must be available
+separately. There are two good ways to set this up — pick based on whether you
+already use the QGIS desktop application.
+
+### Option A — drive a local QGIS install (lightweight env)
+
+If you have the QGIS desktop app installed, the package **auto-discovers** it and
+runs your script through QGIS's own **bundled Python** via its entrypoint
+launcher. You can then install `qgis-project` into **any** Python environment
+(venv, conda, system) with minimal overhead — the `qgis` package from conda is
+**not** required.
 
 ```bash
 pip install qgis-project
+# …and have a standalone QGIS desktop install on the machine (auto-discovered)
 ```
 
-QGIS is not on PyPI and must be available separately. The recommended approach is a dedicated conda environment:
+- ✅ Tiny environment, a single QGIS install, and no QGIS/Python version conflicts.
+- ⚠️ Slightly hacky: execution runs in a separate process, so there are no live
+  QGIS objects (e.g. no `snapshot()`).
+
+Ready-made env: [`environments/strategy2-wrapper.yml`](environments/strategy2-wrapper.yml).
+
+### Option B — install QGIS from conda-forge (in-process)
+
+Create a conda environment that includes the `qgis` package; that environment's
+Python interpreter then runs your script directly, in-process.
 
 ```bash
-conda env create -f environment_platform_independent.yml
-conda activate qgis-env-pi
-pip install qgis-project
+conda env create -f environments/strategy3-conda.yml
+conda activate qgis-project-conda
 ```
 
-Or install QGIS from conda-forge into an existing environment:
+Or add QGIS to an existing environment:
 
 ```bash
 conda install -c conda-forge qgis
 pip install qgis-project
 ```
+
+- ✅ Clean, conventional, with full access to live QGIS objects.
+- ⚠️ Larger environment (the QGIS stack is >1 GB), and if you also have the
+  desktop app you end up with multiple QGIS installs.
+
+See [**How qgis-project connects to QGIS**](https://qgis-project.readthedocs.io/en/latest/standalone/)
+in the docs for a full explanation of every approach and how to force a specific
+one with `QGIS_PROJECT_LAUNCH_MODE`.
 
 
 

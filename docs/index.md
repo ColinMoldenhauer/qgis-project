@@ -32,14 +32,25 @@ proj.open()     # launch QGIS for visual inspection
 pip install qgis-project
 ```
 
-QGIS is not on PyPI and must be installed separately via conda-forge:
+`qgis-project` is pure Python (only `loguru`); the heavy lifting is done by QGIS,
+which is **not on PyPI**. There are two good ways to provide it:
+
+- **A — drive a local QGIS install:** if you have the QGIS desktop app, it is
+  auto-discovered and its bundled Python runs your script. Install
+  `qgis-project` into any lightweight env — the `qgis` conda package is *not*
+  needed.
+- **B — QGIS from conda-forge:** install `qgis` into a conda environment and run
+  in-process.
 
 ```bash
+# Option B, the quickest conda route:
 conda install -c conda-forge qgis
 pip install qgis-project
 ```
 
-See the [repository README](https://github.com/ColinMoldenhauer/qgis-project#readme) for full environment setup instructions.
+See [**Connecting to QGIS**](standalone.md) for a full explanation of both
+approaches (and a third, advanced one), and how to force a specific one with
+`QGIS_PROJECT_LAUNCH_MODE`.
 
 
 ## Quick start

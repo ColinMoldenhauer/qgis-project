@@ -6,7 +6,7 @@ repo_name: ColinMoldenhauer/qgis-project
 
 theme:
   name: material
-  logo: assets/logo-transparent.png
+  logo: assets/logo.png
   favicon: assets/logo-transparent.png
   palette:
     - scheme: default
@@ -25,6 +25,7 @@ theme:
     - navigation.top
     - content.code.copy
     - toc.follow
+    - toc.integrate
 
 plugins:
   - search
@@ -39,7 +40,7 @@ plugins:
 
 nav:
   - Home: index.md
-  - Standalone Scripts: standalone.md
+  - Connecting to QGIS: standalone.md
   - API Reference:
     - Project: api/project.md
     - Layers & Processing: api/layer.md
@@ -51,3 +52,5 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.superfences
   - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
