@@ -185,3 +185,34 @@ def test_web_layer_name_fallback():
 def test_layer_crs_int_field_unchanged():
     layer = Layer(file="dem.tif", crs=4326)
     assert layer.crs == 4326  # still int — normalization must not mutate this
+
+
+# ---------------------------------------------------------------------------
+# Subprocess package staging (isolation from the host's import roots)
+# ---------------------------------------------------------------------------
+
+def test_stage_package_copies_only_qgis_project(tmp_path):
+    """Staging must yield a clean import root holding only the package.
+
+    Regression guard: pointing PYTHONPATH at a shared site-packages would leak
+    every neighbouring package (numpy, GDAL, …) — built for the wrong Python —
+    onto QGIS's interpreter and break import there.
+    """
+    from qgis_project._subprocess import SubprocessProject
+
+    staged = SubprocessProject._stage_package(str(tmp_path))
+
+    # The parent (the import root we put on PYTHONPATH) contains nothing but
+    # the package itself.
+    assert [p.name for p in tmp_path.iterdir()] == ["qgis_project"]
+    assert staged == tmp_path / "qgis_project"
+    assert (staged / "__init__.py").is_file()
+    assert (staged / "_executor.py").is_file()
+
+
+def test_stage_package_excludes_pycache(tmp_path):
+    from qgis_project._subprocess import SubprocessProject
+
+    staged = SubprocessProject._stage_package(str(tmp_path))
+    assert not list(staged.rglob("__pycache__"))
+    assert not list(staged.rglob("*.pyc"))

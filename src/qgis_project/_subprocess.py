@@ -13,6 +13,7 @@ import dataclasses
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -172,20 +173,29 @@ class SubprocessProject:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extra_pythonpath() -> str:
-        """Return a PYTHONPATH fragment containing the qgis_project package.
+    def _stage_package(dest_parent: str) -> Path:
+        """Copy the qgis_project package into *dest_parent* and return its path.
 
-        Only this directory is injected into the bundled Python's environment —
-        nothing else from the user's sys.path — to minimise the risk of package
-        conflicts with QGIS's own bundled libraries. qgis_project has no runtime
-        dependencies of its own (it logs via the stdlib `logging` module), so
-        nothing else needs to come along.
+        The executor needs to ``import qgis_project`` in QGIS's interpreter, but
+        we must NOT expose the rest of the host interpreter's import roots to it.
+        Pointing PYTHONPATH at the directory that *contains* the installed
+        package would, when the package lives in a shared site-packages, drag
+        every other package there (numpy, GDAL, Qt, …) onto QGIS's path — built
+        for the wrong Python ABI — and break ``import`` inside QGIS. qgis_project
+        has no runtime dependencies of its own, so copying just the package into
+        an isolated directory gives the executor everything it needs and nothing
+        it doesn't.
         """
         import qgis_project as _pkg
 
-        # parent.parent gives the directory that *contains* the package folder
-        # (i.e. site-packages or src/), not the package folder itself.
-        return str(Path(_pkg.__file__).parent.parent)
+        pkg_dir = Path(_pkg.__file__).parent
+        staged = Path(dest_parent) / pkg_dir.name
+        shutil.copytree(
+            pkg_dir,
+            staged,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+        return staged
 
     def _run(self, output: str, action: str) -> None:
         from ._env import find_qgis_launcher
@@ -196,8 +206,6 @@ class SubprocessProject:
                 "No QGIS launcher found. "
                 "Install QGIS as a standalone application or set QGIS_PREFIX_PATH."
             )
-
-        executor = Path(__file__).parent / "_executor.py"
 
         from . import _spec
         spec_dict = _spec.to_dict(self._layers, output, action)
@@ -212,16 +220,25 @@ class SubprocessProject:
             json.dump(spec_dict, f, indent=2)
             spec_path = f.name
 
-        env = os.environ.copy()
-        existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = self._extra_pythonpath() + (os.pathsep + existing if existing else "")
-        # The executor runs in QGIS's bundled Python, where qgis is importable,
-        # so it must use the in-process backend. Pin the mode explicitly so a
-        # parent QGIS_PROJECT_LAUNCH_MODE=local does not get inherited and recurse
-        # into another subprocess launch.
-        env["QGIS_PROJECT_LAUNCH_MODE"] = "env"
+        # Stage qgis_project into an isolated directory so the only import root
+        # exposed to QGIS's interpreter is the package itself (see _stage_package).
+        staging = tempfile.mkdtemp(prefix="qgis_project_")
 
         try:
+            staged_pkg = self._stage_package(staging)
+            executor = staged_pkg / "_executor.py"
+
+            env = os.environ.copy()
+            # Replace, don't extend: a host PYTHONPATH (e.g. a conda env's
+            # site-packages) must not leak into QGIS's interpreter, where it
+            # would shadow QGIS's own ABI-matched numpy/GDAL/Qt and break import.
+            env["PYTHONPATH"] = staging
+            # The executor runs in QGIS's bundled Python, where qgis is importable,
+            # so it must use the in-process backend. Pin the mode explicitly so a
+            # parent QGIS_PROJECT_LAUNCH_MODE=local does not get inherited and recurse
+            # into another subprocess launch.
+            env["QGIS_PROJECT_LAUNCH_MODE"] = "env"
+
             # On Windows, .bat files must be invoked through cmd.exe.
             # On other platforms the launcher is a plain executable.
             if sys.platform == "win32":
@@ -234,3 +251,4 @@ class SubprocessProject:
                 raise RuntimeError(f"QGIS executor exited with code {result.returncode}")
         finally:
             os.unlink(spec_path)
+            shutil.rmtree(staging, ignore_errors=True)
