@@ -10,6 +10,7 @@ import logging
 import os
 import platform
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -107,12 +108,20 @@ def find_qgis_prefix_path() -> str:
 
 
 def find_qgis_launcher():
-    """Return the path to the platform-specific QGIS Python launcher, or None.
+    """Return the path to a QGIS Python launcher/interpreter, or None.
 
-    The launcher is the script that sets up the QGIS environment and then
-    runs the bundled Python interpreter — `python-qgis.bat` on Windows,
-    `python-qgis.sh` on Linux, and the macOS shell wrapper.  It is used
-    by SubprocessProject to delegate execution to the QGIS Python.
+    This is whatever SubprocessProject should invoke to run the executor in a
+    Python that has the QGIS bindings:
+
+    - Windows / macOS / standalone: the wrapper script that sets up the QGIS
+      environment and runs the bundled Python — `python-qgis.bat`,
+      `python-qgis.sh`, etc.
+    - Linux distro installs (apt, self-build): there is no wrapper; the system
+      interpreter beside the qgis binary already has the bindings, so a
+      validated `python3` is returned instead.
+
+    Sandboxed installs (snap/flatpak/AppImage) confine the bindings out of
+    reach of any host interpreter; these return None.
     """
     system = platform.system()
     logger.debug(f"Locating QGIS Python launcher on platform '{system}'...")
@@ -153,6 +162,88 @@ def find_qgis_launcher():
             logger.debug(f"QGIS launcher found: {wrapper}")
             return str(wrapper)
     logger.debug(f"No python-qgis*.sh launcher found in {prefix / 'bin'}.")
+
+    # Distro packages (apt qgis + python3-qgis) and self-builds ship no wrapper
+    # script; PyQGIS is importable from the system interpreter beside the qgis
+    # binary instead. Sandboxed installs (snap/flatpak/AppImage) confine the
+    # bindings, so a host interpreter can never reach them — detect and bail
+    # with a clear message rather than returning an interpreter that will fail.
+    qgis_bin = shutil.which("qgis")
+    resolved = os.path.realpath(qgis_bin) if qgis_bin else str(prefix)
+    if _is_sandboxed_install(resolved):
+        logger.warning(
+            "QGIS at %s looks like a sandboxed snap/flatpak/AppImage install; "
+            "its Python bindings are not reachable from a host interpreter. "
+            "Install QGIS via conda-forge and use mode 'env' instead.",
+            resolved,
+        )
+        return None
+
+    return _find_qgis_python(prefix)
+
+
+def _is_sandboxed_install(path: str) -> bool:
+    """True if a resolved QGIS path is a confined snap/flatpak/AppImage install.
+
+    Such installs keep their Python bindings inside the sandbox, so no host
+    interpreter can `import qgis` against them.
+    """
+    p = path.lower().replace("\\", "/")
+    return (
+        "/snap/" in p
+        or "/flatpak/" in p
+        or ".mount_" in p  # AppImage fuse mount point
+        or p.endswith(".appimage")
+    )
+
+
+def _find_qgis_python(prefix: Path) -> str | None:
+    """Return a python interpreter near *prefix* that can `import qgis`, or None.
+
+    Linux distro installs ship no launcher wrapper; the system interpreter has
+    the bindings on its path instead. Probe the candidate interpreters in
+    `prefix/bin`, preferring the default `python3` symlink (which matches the
+    ABI the distro bindings were built for), and return the first that imports
+    qgis — validated in a child process so a false positive can't slip through.
+
+    The probe augments PYTHONPATH with `prefix/share/qgis/python` to mirror what
+    the executor does via `_setup_linux()`, so custom-prefix installs whose
+    bindings are not on the default path are still recognized.
+    """
+    bin_dir = prefix / "bin"
+    candidates = [bin_dir / "python3"]
+    candidates += sorted(
+        (p for p in bin_dir.glob("python3.*") if p.name[len("python3."):].isdigit()),
+        reverse=True,
+    )
+    candidates.append(bin_dir / "python")
+
+    env = os.environ.copy()
+    qgis_python = prefix / "share" / "qgis" / "python"
+    if qgis_python.exists():
+        existing = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = str(qgis_python) + (os.pathsep + existing if existing else "")
+
+    seen = set()
+    for py in candidates:
+        key = str(py)
+        if key in seen or not py.exists():
+            continue
+        seen.add(key)
+        try:
+            result = subprocess.run(
+                [key, "-c", "import qgis"],
+                capture_output=True,
+                timeout=60,
+                env=env,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0:
+            logger.debug(f"System QGIS interpreter found: {py}")
+            return key
+        logger.debug(f"{py} cannot import qgis; trying next candidate.")
+    logger.debug(f"No host interpreter under {bin_dir} can import qgis.")
     return None
 
 

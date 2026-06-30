@@ -4,10 +4,17 @@ Tests path detection logic using monkeypatching and temp directories.
 """
 import platform
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from qgis_project._env import find_qgis_prefix_path
+import qgis_project._env as _env
+from qgis_project._env import (
+    _find_qgis_python,
+    _is_sandboxed_install,
+    find_qgis_launcher,
+    find_qgis_prefix_path,
+)
 
 
 def test_env_var_takes_precedence(monkeypatch, tmp_path):
@@ -71,3 +78,109 @@ def test_raises_when_nothing_found(monkeypatch, tmp_path):
         monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path))
     with pytest.raises(RuntimeError, match="Could not find"):
         find_qgis_prefix_path()
+
+
+# ---------------------------------------------------------------------------
+# Sandbox classification
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("path", [
+    "/snap/qgis/current/bin/qgis",
+    "/var/lib/flatpak/app/org.qgis.qgis/current/active/files/bin/qgis",
+    "/home/user/Apps/QGIS-3.34.AppImage",
+    "/tmp/.mount_QGISabcXYZ/usr/bin/qgis",
+])
+def test_sandboxed_install_detected(path):
+    assert _is_sandboxed_install(path) is True
+
+
+@pytest.mark.parametrize("path", [
+    "/usr/bin/qgis",
+    "/usr/local/bin/qgis",
+    "/opt/qgis/bin/qgis",
+])
+def test_non_sandboxed_install_not_flagged(path):
+    assert _is_sandboxed_install(path) is False
+
+
+# ---------------------------------------------------------------------------
+# Linux interpreter probe
+# ---------------------------------------------------------------------------
+
+def _fake_run(ok_for):
+    """Build a subprocess.run stub that 'imports qgis' only for `ok_for`."""
+    def run(cmd, *args, **kwargs):
+        rc = 0 if cmd[0] == ok_for else 1
+        return SimpleNamespace(returncode=rc, stdout=b"", stderr=b"")
+    return run
+
+
+def test_find_qgis_python_returns_importable_interpreter(monkeypatch, tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python3").touch()
+    (bin_dir / "python3.11").touch()
+    py3 = str(bin_dir / "python3")
+
+    monkeypatch.setattr(_env.subprocess, "run", _fake_run(py3))
+    # python3 (the default symlink) is probed first and succeeds.
+    assert _find_qgis_python(tmp_path) == py3
+
+
+def test_find_qgis_python_skips_interpreter_without_bindings(monkeypatch, tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python3").touch()
+    (bin_dir / "python3.11").touch()
+    py311 = str(bin_dir / "python3.11")
+
+    # Only the versioned interpreter can import qgis; the bare symlink cannot.
+    monkeypatch.setattr(_env.subprocess, "run", _fake_run(py311))
+    assert _find_qgis_python(tmp_path) == py311
+
+
+def test_find_qgis_python_returns_none_when_nothing_imports(monkeypatch, tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python3").touch()
+
+    monkeypatch.setattr(_env.subprocess, "run", _fake_run("nonexistent"))
+    assert _find_qgis_python(tmp_path) is None
+
+
+def test_find_qgis_python_returns_none_when_no_interpreter(tmp_path):
+    (tmp_path / "bin").mkdir()
+    assert _find_qgis_python(tmp_path) is None
+
+
+# ---------------------------------------------------------------------------
+# Linux launcher fallback wiring
+# ---------------------------------------------------------------------------
+
+def test_launcher_falls_back_to_system_python_on_linux(monkeypatch, tmp_path):
+    monkeypatch.setattr(_env.platform, "system", lambda: "Linux")
+    monkeypatch.setenv("QGIS_PREFIX_PATH", str(tmp_path))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python3").touch()
+    py3 = str(bin_dir / "python3")
+
+    # No qgis on PATH and no wrapper script: must fall through to the probe.
+    monkeypatch.setattr(_env.shutil, "which", lambda _: None)
+    monkeypatch.setattr(_env.subprocess, "run", _fake_run(py3))
+    assert find_qgis_launcher() == py3
+
+
+def test_launcher_returns_none_for_sandboxed_qgis(monkeypatch, tmp_path):
+    monkeypatch.setattr(_env.platform, "system", lambda: "Linux")
+    monkeypatch.setenv("QGIS_PREFIX_PATH", str(tmp_path))
+    (tmp_path / "bin").mkdir()
+
+    # which qgis resolves into a snap → bail before probing any interpreter.
+    monkeypatch.setattr(_env.shutil, "which", lambda _: "/snap/bin/qgis")
+
+    def _fail(*a, **k):
+        raise AssertionError("interpreter probe must not run for sandboxed installs")
+
+    monkeypatch.setattr(_env.subprocess, "run", _fail)
+    assert find_qgis_launcher() is None

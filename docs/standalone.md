@@ -38,8 +38,13 @@ You install QGIS the normal way (the desktop app from qgis.org, or OSGeo4W on
 Windows). That install ships its own private Python with PyQGIS already wired up.
 Instead of importing PyQGIS into *your* interpreter, the package serializes a
 small description of your project to a temporary file and hands it to QGIS's
-bundled Python through the platform launcher (`python-qgis.bat` on Windows,
-`python-qgis.sh` elsewhere), which runs it in a child process.
+bundled Python in a child process. On Windows and macOS this goes through the
+platform launcher (`python-qgis.bat` / `python-qgis.sh`). On Linux there is no
+such wrapper — distro packages (e.g. apt's `qgis` + `python3-qgis`) and
+self-builds expose PyQGIS to the *system* interpreter, so the package locates a
+`python3` beside the `qgis` binary that can `import qgis` and runs the child
+process with it. (Sandboxed installs — snap, flatpak, AppImage — keep their
+bindings confined and can't be driven this way; use approach B instead.)
 
 **Why it's nice.** Your own environment stays tiny — just `qgis-project`
 itself. You never install the heavy `qgis` conda package, and you never hit
