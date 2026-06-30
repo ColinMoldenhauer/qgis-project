@@ -11,7 +11,7 @@ import pytest
 from qgis_project._env import find_qgis_launcher
 from qgis_project._subprocess import SubprocessProject
 from qgis_project.layer import Layer, ProcessingOp, RasterLayer, WebLayer
-from qgis_project.style import RasterStyleBW
+from qgis_project.style import RasterStyleBW, RasterStylePaletted
 
 
 # Skip entire module if no launcher is found
@@ -111,6 +111,28 @@ def test_save_raster(tmp_path, sample_tif):
     out = tmp_path / "raster.qgz"
     p.save(str(out))
     assert out.exists()
+
+
+@pytest.mark.launcher
+def test_save_paletted_raster(tmp_path, categorical_tif):
+    # Exercises the full JSON round trip: the colors/labels dicts are
+    # serialized to the executor, where set_style() coerces the stringified
+    # band-value keys back to ints. This is the path that produced the original
+    # ClassData() failure.
+    p = SubprocessProject()
+    p.add_layer(
+        RasterLayer(
+            file=str(categorical_tif),
+            style=RasterStylePaletted(
+                colors={1: "#ff0000", 2: "#00ff00", 3: "#0000ff"},
+                labels={1: "Forest"},
+            ),
+        )
+    )
+    out = tmp_path / "paletted.qgz"
+    p.save(str(out))
+    assert out.exists()
+    assert out.stat().st_size > 0
 
 
 @pytest.mark.launcher
