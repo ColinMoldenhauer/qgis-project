@@ -11,20 +11,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from qgis.core import (
-    QgsApplication,
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsLayerTreeGroup,
-    QgsLayerTreeLayer,
-    QgsProject,
-    QgsRasterLayer,
-    QgsReferencedRectangle,
-    QgsRectangle,
-    QgsVectorLayer,
-)
-from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsMapCanvas
-
 from qgis_project.layer import Layer, WebLayer, layer_from_path
 from qgis_project.utils import (
     add_or_get_group,
@@ -44,6 +30,9 @@ class Project:
         crs: str | int | None = None,
         data_dir: str | Path | None = None,
     ):
+        from qgis.core import QgsApplication, QgsProject
+        from qgis.gui import QgsLayerTreeMapCanvasBridge, QgsMapCanvas
+
         existing = QgsApplication.instance()
         if existing is None:
             self._application = QgsApplication([], False)
@@ -72,6 +61,12 @@ class Project:
 
     def _add_layer(self, layer: Layer | WebLayer):
         """Add a layer to the underlying project."""
+        from qgis.core import (
+            QgsCoordinateReferenceSystem,
+            QgsRasterLayer,
+            QgsVectorLayer,
+        )
+
         if isinstance(layer, WebLayer):
             if layer.provider == "WFS":
                 qgis_layer = QgsVectorLayer(layer.uri, layer.get_layer_name(), "WFS")
@@ -177,6 +172,8 @@ class Project:
         crs : str or int
             EPSG integer (e.g. `3857`) or authority string (e.g. `"EPSG:3857"`).
         """
+        from qgis.core import QgsCoordinateReferenceSystem
+
         self._project.setCrs(QgsCoordinateReferenceSystem(normalize_crs(crs)))
 
     def process(
@@ -274,6 +271,8 @@ class Project:
 
     def zoom_to_all(self):
         """Set the project's initial view extent to the union of all layers."""
+        from qgis.core import QgsRectangle
+
         combined = QgsRectangle()
         for node in self._project.layerTreeRoot().findLayers():
             qgis_layer = node.layer()
@@ -292,6 +291,8 @@ class Project:
             self._set_view_extent(combined)
 
     def _transform_extent_to_project_crs(self, extent, layer_crs):
+        from qgis.core import QgsCoordinateTransform
+
         project_crs = self._project.crs()
         if layer_crs == project_crs:
             return extent
@@ -299,6 +300,8 @@ class Project:
         return transform.transformBoundingBox(extent)
 
     def _set_view_extent(self, extent):
+        from qgis.core import QgsReferencedRectangle
+
         project_crs = self._project.crs()
         ref_extent = QgsReferencedRectangle(extent, project_crs)
         self._project.viewSettings().setDefaultViewExtent(ref_extent)
@@ -416,6 +419,7 @@ class Project:
 
     def print_layer_tree(self):
         """Print the layer tree to stdout."""
+        from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
 
         def _print_node(node, indent: int):
             prefix = "  " * indent
@@ -433,6 +437,8 @@ class Project:
 
     def _find_group(self, path: list[str]):
         """Return the QgsLayerTreeGroup at *path*, or None if not found."""
+        from qgis.core import QgsLayerTreeGroup
+
         node = self._project.layerTreeRoot()
         for name in path:
             node = next(

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +24,8 @@ def get_layer_by_idx(project, idx: int):
 
 
 def add_or_get_group(project, group_name: str | list[str]):
+    from qgis.core import QgsLayerTreeGroup
+
     root = project.layerTreeRoot()
     group = root
 
@@ -60,6 +60,8 @@ def layer_exists_by_path(project, path: str | list[str]) -> bool:
     path : str or list of str
         Either a bare layer name (no group) or a list like ["Group1", "SubGroup", "LayerName"].
     """
+    from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
+
     if isinstance(path, str):
         path = [path]
     if not path:
@@ -88,6 +90,8 @@ def remove_layer_by_path(project, path: str | list[str]) -> bool:
     """
     Remove a layer by full group path, e.g. ["Group1", "SubGroup", "LayerName"].
     """
+    from qgis.core import QgsLayerTreeGroup, QgsLayerTreeLayer
+
     if isinstance(path, str):
         path = [path]
     if not path:
