@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo-text.png" alt="qgis-project" width="400"/>
+  <img src="https://raw.githubusercontent.com/ColinMoldenhauer/qgis-project/main/docs/assets/logo-text.png" alt="qgis-project" width="400"/>
 </p>
 
 # qgis-project
@@ -169,6 +169,44 @@ layer = RasterLayer(
     ),
 )
 proj.add_layer(layer)
+```
+
+### NetCDF and other multi-variable rasters
+
+A NetCDF (`.nc`) file is a container of one or more named *variables*. Adding
+the file with no further arguments loads **every** variable as its own layer,
+named `"<file> : <variable>"`:
+
+```python
+proj.add_layer("climate.nc")        # one layer per variable
+```
+
+Select a single variable, or a subset, with the `variable` argument:
+
+```python
+proj.add_layer("climate.nc", variable="temperature")
+proj.add_layer("climate.nc", variable=["temperature", "precipitation"])
+```
+
+Variables nested inside NetCDF-4 groups are addressed by their full path, and
+the group hierarchy is mirrored in the QGIS layer tree (here `humidity` lands in
+a `forecast` group):
+
+```python
+proj.add_layer("climate.nc", variable="/forecast/humidity")
+```
+
+A variable with a time (or Z) dimension loads as a multi-band raster — one band
+per step — so `band_idx` selects the step, and any `RasterStyle` applies as
+usual. NetCDF often lacks an embedded CRS; set it with `crs=...` if needed.
+
+List the variables in a file without loading it (requires GDAL in the current
+environment):
+
+```python
+from qgis_project import list_raster_variables
+
+list_raster_variables("climate.nc")   # ['temperature', 'precipitation', '/forecast/humidity']
 ```
 
 ### Vector styling

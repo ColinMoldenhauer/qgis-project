@@ -12,6 +12,54 @@ import pickle
 from qgis_project.style import RasterStyle, VectorLabels, VectorStyle
 
 
+# File extensions handled through GDAL's NetCDF driver, where a single file is
+# a container of one or more named variables (subdatasets).
+NETCDF_EXTENSIONS = (".nc", ".nc4", ".cdf", ".netcdf")
+
+
+def is_netcdf(file: str) -> bool:
+    """Return True if *file* has a NetCDF extension (see `NETCDF_EXTENSIONS`)."""
+    return os.path.splitext(str(file))[1].lower() in NETCDF_EXTENSIONS
+
+
+def gdal_raster_source(file: str, variable: str | None) -> str:
+    """Build the GDAL source string for a raster.
+
+    For a NetCDF variable (subdataset), returns the provider connection string
+    ``NETCDF:"<file>":<variable>``. For a plain raster (``variable`` is None),
+    returns the file path unchanged. A *variable* of ``"/forecast/humidity"``
+    addresses a variable nested inside a NetCDF-4 group.
+    """
+    if variable is None:
+        return str(file)
+    return f'NETCDF:"{file}":{variable}'
+
+
+def netcdf_name_and_group(file, token, group, name, multiple):
+    """Derive the layer name and group path for one NetCDF variable.
+
+    A variable *token* maps a NetCDF-4 group hierarchy onto the QGIS layer
+    tree: ``"/forecast/humidity"`` places the layer in a ``forecast`` subgroup
+    (appended to the user's *group*) named after the leaf variable. The display
+    name defaults to ``"<file> : <variable>"`` so multiple variables from one
+    file stay distinguishable; an explicit *name* is honored only when a single
+    variable is selected (*multiple* is False), since reusing it across several
+    layers would collide.
+    """
+    parts = [p for p in str(token).strip("/").split("/") if p]
+    leaf = parts[-1] if parts else str(token)
+    internal = parts[:-1]
+
+    base = os.path.basename(str(file))
+    layer_name = name if (name and not multiple) else f"{base} : {leaf}"
+
+    g: list[str] = []
+    if group is not None:
+        g = [group] if isinstance(group, str) else list(group)
+    g = g + internal
+    return layer_name, (g or None)
+
+
 class QgisLayerLinkError(Exception):
     def __init__(self):
         super().__init__(
@@ -63,7 +111,7 @@ class Layer(_LayerMixin):
     ----------
     file : str
         Path to the layer file (`".shp"`, `".geojson"`, `".gpkg"`,
-        `".tif"`, `".tiff"`, `".img"`).
+        `".tif"`, `".tiff"`, `".img"`, `".nc"`).
     crs : str or int or None
         Override the layer CRS. Accepts an EPSG integer or authority string
         (e.g. `"EPSG:4326"`). If `None`, the layer's native CRS is used.
@@ -134,6 +182,17 @@ class RasterLayer(Layer):
     # int for single-band styles (RasterStyleBW, RasterStyleSinglePseudocolor);
     # list of three band numbers [R, G, B] for RasterStyleMultiBandColor.
     band_idx: int | list[int] = 1
+
+    # NetCDF/HDF variable (subdataset) selection. Only meaningful for container
+    # formats like NetCDF, where one file holds several named variables:
+    #   - None (default): every variable is added as its own layer.
+    #   - str, e.g. "temperature" (or "/forecast/humidity" for a variable inside
+    #     a NetCDF-4 group): add just that variable.
+    #   - list[str]: add the named subset.
+    # A variable carrying a time/Z dimension becomes a multi-band raster; use
+    # band_idx to pick the step. Ignored for single-dataset rasters (.tif, ...).
+    variable: str | list[str] | None = None
+
     style: RasterStyle = field(default_factory=RasterStyle)
 
     # Extra kwargs forwarded to QgsRasterDataProvider.bandStatistics(), e.g.
@@ -184,6 +243,8 @@ def layer_from_path(file: str, **kwargs) -> Layer:
         isinstance(kwargs.get("style"), RasterStyle)
         or "band_idx" in kwargs
         or "statistics_kwargs" in kwargs
+        or "variable" in kwargs
+        or is_netcdf(file)
     )
     cls = RasterLayer if is_raster else Layer
     return cls(file, **kwargs)

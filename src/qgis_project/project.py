@@ -4,6 +4,7 @@ Module to handle QGIS project functionality.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import shutil
@@ -11,11 +12,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from qgis_project.layer import Layer, WebLayer, layer_from_path
+from qgis_project.layer import (
+    Layer,
+    RasterLayer,
+    WebLayer,
+    gdal_raster_source,
+    is_netcdf,
+    layer_from_path,
+    netcdf_name_and_group,
+)
 from qgis_project.utils import (
     add_or_get_group,
     get_layer_by_idx,
     layer_exists_by_path,
+    list_raster_variables,
     normalize_crs,
     remove_layer_by_path,
 )
@@ -59,8 +69,67 @@ class Project:
         if crs is not None:
             self.set_crs(crs)
 
+    def _resolve_netcdf(self, layer: RasterLayer) -> list[RasterLayer] | None:
+        """Expand a NetCDF raster layer into one concrete layer per variable.
+
+        Returns a list of `RasterLayer`s — each pinned to a single variable with
+        its name/group derived (see `netcdf_name_and_group`) — or `None` when no
+        expansion applies (not a NetCDF file, a missing file, or a single-variable
+        file with no explicit `variable`), in which case the caller loads *layer*
+        as-is.
+        """
+        if not is_netcdf(layer.file) or not os.path.exists(layer.file):
+            return None
+
+        variable = layer.variable
+        available = list_raster_variables(layer.file)
+
+        if not available:
+            # Single-variable file: GDAL opens it directly as the main dataset.
+            # Only intervene if the user asked for a specific variable by name.
+            if variable is None:
+                return None
+            requested = [variable] if isinstance(variable, str) else list(variable)
+        else:
+            if variable is None:
+                requested = list(available)
+            elif isinstance(variable, str):
+                requested = [variable]
+            else:
+                requested = list(variable)
+
+            valid = [v for v in requested if v in available]
+            unknown = [v for v in requested if v not in available]
+            if unknown:
+                logger.warning(
+                    f"Variable(s) not found in {os.path.basename(layer.file)}: "
+                    f"{', '.join(map(str, unknown))}. Available: {', '.join(available)}"
+                )
+            requested = valid
+
+        multiple = len(requested) > 1
+        children = []
+        for token in requested:
+            name, group = netcdf_name_and_group(
+                layer.file, token, layer.group, layer.name, multiple
+            )
+            children.append(
+                dataclasses.replace(layer, variable=token, name=name, group=group)
+            )
+        return children
+
     def _add_layer(self, layer: Layer | WebLayer):
-        """Add a layer to the underlying project."""
+        """Add a layer to the project, expanding multi-variable NetCDF files."""
+        if isinstance(layer, RasterLayer):
+            resolved = self._resolve_netcdf(layer)
+            if resolved is not None:
+                for child in resolved:
+                    self._add_single_layer(child)
+                return
+        self._add_single_layer(layer)
+
+    def _add_single_layer(self, layer: Layer | WebLayer):
+        """Add one resolved layer to the underlying project."""
         from qgis.core import (
             QgsCoordinateReferenceSystem,
             QgsRasterLayer,
@@ -79,12 +148,19 @@ class Project:
                 logger.error(f"File does not exist: {layer.file}")
                 return
 
-            # Try vector first, then raster — delegates format detection to
-            # GDAL/OGR so any format they support works without an extension list.
             name = layer.get_layer_name()
-            qgis_layer = QgsVectorLayer(layer.file, name, "ogr")
-            if not qgis_layer.isValid():
-                qgis_layer = QgsRasterLayer(layer.file, name)
+            variable = getattr(layer, "variable", None)
+            if variable is not None:
+                # A resolved NetCDF variable — load it directly through GDAL.
+                qgis_layer = QgsRasterLayer(
+                    gdal_raster_source(layer.file, variable), name, "gdal"
+                )
+            else:
+                # Try vector first, then raster — delegates format detection to
+                # GDAL/OGR so any format they support works without an extension list.
+                qgis_layer = QgsVectorLayer(layer.file, name, "ogr")
+                if not qgis_layer.isValid():
+                    qgis_layer = QgsRasterLayer(layer.file, name)
             if not qgis_layer.isValid():
                 logger.error(f"Unsupported or unreadable file: {layer.file}")
                 return

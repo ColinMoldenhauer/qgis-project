@@ -131,6 +131,81 @@ def test_add_vector_layer(qgis_app, vector_file):
 
 
 # ---------------------------------------------------------------------------
+# NetCDF — multi-variable container support
+# ---------------------------------------------------------------------------
+
+def test_netcdf_adds_all_variables_by_default(qgis_app, sample_nc):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(str(sample_nc))
+    layers = QgsProject.instance().mapLayers().values()
+    names = {l.name() for l in layers}
+    # temperature, precipitation (root) + humidity (group) all expand.
+    assert "climate.nc : temperature" in names
+    assert "climate.nc : precipitation" in names
+    assert all(l.isValid() for l in layers)
+    project.exit()
+
+
+def test_netcdf_single_variable_selection(qgis_app, sample_nc):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(str(sample_nc), variable="temperature")
+    layers = list(QgsProject.instance().mapLayers().values())
+    assert len(layers) == 1
+    layer = layers[0]
+    assert layer.isValid()
+    assert layer.name() == "climate.nc : temperature"
+    # The source is addressed through GDAL's NetCDF subdataset syntax.
+    assert "NETCDF" in layer.source()
+    assert "temperature" in layer.source()
+    project.exit()
+
+
+def test_netcdf_variable_subset_selection(qgis_app, sample_nc):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(str(sample_nc), variable=["temperature", "precipitation"])
+    names = {l.name() for l in QgsProject.instance().mapLayers().values()}
+    assert names == {"climate.nc : temperature", "climate.nc : precipitation"}
+    project.exit()
+
+
+def test_netcdf_unknown_variable_is_skipped(qgis_app, sample_nc):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(str(sample_nc), variable="does_not_exist")
+    assert len(QgsProject.instance().mapLayers()) == 0
+    project.exit()
+
+
+def test_netcdf_time_dimension_is_multiband(qgis_app, sample_nc):
+    from qgis.core import QgsProject
+    project = Project()
+    project.add_layer(str(sample_nc), variable="temperature")
+    layer = next(iter(QgsProject.instance().mapLayers().values()))
+    # The 3-step time dimension surfaces as three raster bands.
+    assert layer.bandCount() == 3
+    project.exit()
+
+
+def test_netcdf_nested_group_maps_to_layer_group(qgis_app, sample_nc):
+    from qgis.core import QgsLayerTreeGroup, QgsProject
+    from qgis_project import list_raster_variables
+
+    # Skip if this GDAL build doesn't expose the grouped variable as a subdataset.
+    if not any("humidity" in v for v in list_raster_variables(str(sample_nc))):
+        pytest.skip("GDAL build does not expose NetCDF-4 group variables")
+
+    project = Project()
+    project.add_layer(str(sample_nc), variable="/forecast/humidity")
+    root = QgsProject.instance().layerTreeRoot()
+    groups = [c.name() for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
+    assert "forecast" in groups
+    project.exit()
+
+
+# ---------------------------------------------------------------------------
 # Format coverage — one test per common file format
 # ---------------------------------------------------------------------------
 

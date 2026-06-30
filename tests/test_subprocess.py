@@ -135,6 +135,28 @@ def test_save_paletted_raster(tmp_path, categorical_tif):
     assert out.stat().st_size > 0
 
 
+def test_netcdf_variable_list_round_trips_through_spec():
+    # The variable list must survive JSON serialization so the executor (which
+    # runs where GDAL is available) can expand it into one layer per variable.
+    from qgis_project import _spec
+
+    p = SubprocessProject()
+    p.add_layer(RasterLayer(file="climate.nc", variable=["temperature", "precipitation"]))
+    spec = _spec.to_dict(p._layers, "out.qgz")
+    (layers, _out, _action) = _spec.from_dict(spec)
+    assert layers[0].variable == ["temperature", "precipitation"]
+
+
+@pytest.mark.launcher
+def test_save_netcdf_all_variables(tmp_path, sample_nc):
+    p = SubprocessProject()
+    p.add_layer(str(sample_nc))
+    out = tmp_path / "climate.qgz"
+    p.save(str(out))
+    assert out.exists()
+    assert out.stat().st_size > 0
+
+
 @pytest.mark.launcher
 def test_save_nested_groups(tmp_path, vector_file, sample_tif):
     p = SubprocessProject()

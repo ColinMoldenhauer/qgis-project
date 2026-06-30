@@ -118,6 +118,60 @@ def categorical_tif(tmp_path_factory):
     return path
 
 
+@pytest.fixture(scope="session")
+def sample_nc(tmp_path_factory):
+    """A small CF-compliant NetCDF holding multiple variables.
+
+    Layout:
+      - root: ``temperature`` (time, lat, lon) — three time steps, so it loads
+        as a 3-band raster — and ``precipitation`` (lat, lon).
+      - group ``forecast``: ``humidity`` (lat, lon).
+
+    1-D ``lat``/``lon`` coordinate variables give GDAL the georeferencing it
+    needs to expose each variable as a valid raster subdataset. Requires the
+    ``netCDF4`` package; skips otherwise.
+    """
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
+    try:
+        import numpy as np
+        import netCDF4
+    except ImportError:
+        pytest.skip("netCDF4 or numpy not available")
+
+    path = tmp_path_factory.mktemp("data") / "climate.nc"
+    ds = netCDF4.Dataset(str(path), "w")
+    ds.createDimension("lat", 5)
+    ds.createDimension("lon", 4)
+    ds.createDimension("time", 3)
+
+    lat = ds.createVariable("lat", "f4", ("lat",))
+    lat.units = "degrees_north"
+    lat.standard_name = "latitude"
+    lat[:] = np.linspace(10.0, 14.0, 5)
+
+    lon = ds.createVariable("lon", "f4", ("lon",))
+    lon.units = "degrees_east"
+    lon.standard_name = "longitude"
+    lon[:] = np.linspace(0.0, 3.0, 4)
+
+    temp = ds.createVariable("temperature", "f4", ("time", "lat", "lon"))
+    temp.units = "K"
+    temp[:] = np.arange(3 * 5 * 4, dtype="f4").reshape(3, 5, 4)
+
+    precip = ds.createVariable("precipitation", "f4", ("lat", "lon"))
+    precip.units = "mm"
+    precip[:] = np.arange(5 * 4, dtype="f4").reshape(5, 4)
+
+    grp = ds.createGroup("forecast")
+    hum = grp.createVariable("humidity", "f4", ("lat", "lon"))
+    hum.units = "%"
+    hum[:] = np.arange(5 * 4, dtype="f4").reshape(5, 4)
+
+    ds.close()
+    return path
+
+
 _GEOJSON_FC = {
     "type": "FeatureCollection",
     "features": [

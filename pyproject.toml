@@ -37,6 +37,7 @@ dev = [
   "pytest-cov",
   "mypy>=1.0.0",
   "numpy",
+  "netCDF4",  # builds the multi-variable NetCDF test fixture
 ]
 docs = [
   "mkdocs-material",
@@ -58,6 +59,8 @@ version-file = "src/qgis_project/__about__.py"
 dependencies = [
   "coverage[toml]>=6.5",
   "pytest",
+  "numpy",
+  "netCDF4",
 ]
 [tool.hatch.envs.default.scripts]
 test = "pytest {args:tests}"

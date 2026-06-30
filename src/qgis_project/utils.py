@@ -13,6 +13,38 @@ def normalize_crs(crs: str | int) -> str:
     return f"EPSG:{crs}" if isinstance(crs, int) else crs
 
 
+def list_raster_variables(file: str) -> list[str]:
+    """Return the variable (subdataset) tokens in a NetCDF/HDF raster file.
+
+    Each token is the identifier used after the file in a GDAL NETCDF
+    connection string — e.g. `"temperature"`, or `"/forecast/humidity"` for a
+    variable inside a NetCDF-4 group — and is what you pass as
+    `RasterLayer(..., variable=...)`.
+
+    Returns an empty list for a single-variable file (GDAL exposes it as the
+    main dataset, not a subdataset) or when the file cannot be read. Requires
+    GDAL's Python bindings in the current interpreter, so call it from an
+    in-process (env) backend rather than subprocess mode.
+    """
+    try:
+        from osgeo import gdal
+    except ImportError:
+        logger.warning("osgeo.gdal not importable; cannot enumerate raster variables.")
+        return []
+
+    ds = gdal.Open(str(file))
+    if ds is None:
+        return []
+
+    tokens = []
+    for name, _desc in ds.GetSubDatasets():
+        # name looks like NETCDF:"<path>":<var>. The path is quoted, so taking
+        # the text after the final quote isolates ":<var>" regardless of any
+        # colons in the path (e.g. a Windows drive letter).
+        tokens.append(name.rsplit('"', 1)[-1].lstrip(":"))
+    return tokens
+
+
 def get_layer_by_idx(project, idx: int):
     """Return the QGIS layer at position *idx* in a flat, depth-first traversal of the layer tree."""
     layers = [

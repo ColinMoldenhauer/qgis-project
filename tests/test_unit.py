@@ -4,7 +4,16 @@ Unit tests — no QGIS installation required.
 import pytest
 
 # Import directly from submodules so this file is runnable without QGIS.
-from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer, WebLayer, layer_from_path
+from qgis_project.layer import (
+    Layer,
+    QgisLayerLinkError,
+    RasterLayer,
+    WebLayer,
+    gdal_raster_source,
+    is_netcdf,
+    layer_from_path,
+    netcdf_name_and_group,
+)
 from qgis_project.style import (
     RasterStyle,
     RasterStyleBW,
@@ -112,6 +121,79 @@ def test_layer_from_path_forwards_common_kwargs():
     assert layer.name == "Elevation"
     assert layer.group == "terrain"
     assert layer.visible is False
+
+
+# ---------------------------------------------------------------------------
+# NetCDF helpers
+# ---------------------------------------------------------------------------
+
+def test_is_netcdf_by_extension():
+    assert is_netcdf("climate.nc")
+    assert is_netcdf("/data/CLIMATE.NC4")
+    assert is_netcdf("model.cdf")
+    assert not is_netcdf("dem.tif")
+    assert not is_netcdf("regions.geojson")
+
+
+def test_gdal_raster_source_plain_file():
+    assert gdal_raster_source("dem.tif", None) == "dem.tif"
+
+
+def test_gdal_raster_source_netcdf_variable():
+    assert gdal_raster_source("climate.nc", "temperature") == 'NETCDF:"climate.nc":temperature'
+
+
+def test_gdal_raster_source_nested_variable():
+    assert (
+        gdal_raster_source("climate.nc", "/forecast/humidity")
+        == 'NETCDF:"climate.nc":/forecast/humidity'
+    )
+
+
+def test_netcdf_name_and_group_flat_default_name():
+    name, group = netcdf_name_and_group("climate.nc", "temperature", None, None, multiple=True)
+    assert name == "climate.nc : temperature"
+    assert group is None
+
+
+def test_netcdf_name_and_group_nested_maps_to_subgroup():
+    name, group = netcdf_name_and_group(
+        "/data/climate.nc", "/forecast/humidity", None, None, multiple=True
+    )
+    assert name == "climate.nc : humidity"
+    assert group == ["forecast"]
+
+
+def test_netcdf_name_and_group_combines_user_group_and_internal():
+    name, group = netcdf_name_and_group(
+        "climate.nc", "/forecast/humidity", "weather", None, multiple=True
+    )
+    assert group == ["weather", "forecast"]
+
+
+def test_netcdf_name_and_group_explicit_name_only_when_single():
+    # A single selected variable honors the user's name...
+    name, _ = netcdf_name_and_group("climate.nc", "temperature", None, "Temp", multiple=False)
+    assert name == "Temp"
+    # ...but when several variables expand, an explicit name would collide, so
+    # the per-variable default wins.
+    name, _ = netcdf_name_and_group("climate.nc", "temperature", None, "Temp", multiple=True)
+    assert name == "climate.nc : temperature"
+
+
+def test_layer_from_path_netcdf_builds_raster_layer():
+    layer = layer_from_path("climate.nc")
+    assert type(layer) is RasterLayer
+
+
+def test_layer_from_path_variable_builds_raster_layer():
+    layer = layer_from_path("climate.nc", variable="temperature")
+    assert type(layer) is RasterLayer
+    assert layer.variable == "temperature"
+
+
+def test_raster_layer_variable_default_is_none():
+    assert RasterLayer(file="climate.nc").variable is None
 
 
 # ---------------------------------------------------------------------------

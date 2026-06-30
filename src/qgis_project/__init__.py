@@ -160,6 +160,7 @@ class Project:
 
 
 from .layer import Layer, ProcessingOp, RasterLayer, WebLayer
+from .utils import list_raster_variables
 from .style import (
     Style,
     RasterStyle,
