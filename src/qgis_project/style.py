@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from qgis.core import QgsContrastEnhancement, QgsSingleBandGrayRenderer
-
 if TYPE_CHECKING:
     from qgis_project.layer import Layer
 
@@ -58,6 +56,8 @@ class RasterStyleBW(RasterStyle):
     """
 
     def set_style(self, layer: Layer):
+        from qgis.core import QgsContrastEnhancement, QgsSingleBandGrayRenderer
+
         vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
         vmax = self.vmax if self.vmax is not None else layer.get_layer_max()
 
@@ -136,7 +136,7 @@ class RasterStyleMultiBandColor(RasterStyle):
     """
 
     def set_style(self, layer: "Layer"):
-        from qgis.core import QgsMultiBandColorRenderer
+        from qgis.core import QgsContrastEnhancement, QgsMultiBandColorRenderer
 
         band_idx = layer.band_idx
         if not isinstance(band_idx, (list, tuple)) or len(band_idx) != 3:

@@ -9,8 +9,6 @@ from dataclasses import dataclass, field
 from functools import wraps
 import pickle
 
-from qgis.core import QgsRasterBandStats
-
 from qgis_project.style import RasterStyle, VectorLabels, VectorStyle
 
 
@@ -145,6 +143,8 @@ class RasterLayer(Layer):
 
     @assert_link
     def get_layer_min(self, band: int | None = None):
+        from qgis.core import QgsRasterBandStats
+
         band = band if band is not None else self.band_idx
         if not isinstance(band, int):
             raise ValueError("band must be specified explicitly when band_idx is a list")
@@ -156,6 +156,8 @@ class RasterLayer(Layer):
 
     @assert_link
     def get_layer_max(self, band: int | None = None):
+        from qgis.core import QgsRasterBandStats
+
         band = band if band is not None else self.band_idx
         if not isinstance(band, int):
             raise ValueError("band must be specified explicitly when band_idx is a list")
