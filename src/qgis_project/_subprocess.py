@@ -238,6 +238,14 @@ class SubprocessProject:
             # parent QGIS_PROJECT_LAUNCH_MODE=local does not get inherited and recurse
             # into another subprocess launch.
             env["QGIS_PROJECT_LAUNCH_MODE"] = "env"
+            # QGIS still spins up a Qt application (it constructs a QgsMapCanvas)
+            # even with the GUI disabled, so it needs a Qt platform plugin. On a
+            # headless server there is no X display and the default 'xcb' plugin
+            # aborts the process (SIGABRT). A pure save has nothing to display, so
+            # default to the offscreen platform. We don't force it for actions
+            # that open the GUI, and setdefault lets a user override win.
+            if action == "save":
+                env.setdefault("QT_QPA_PLATFORM", "offscreen")
 
             # On Windows, .bat files must be invoked through cmd.exe.
             # On other platforms the launcher is a plain executable.
