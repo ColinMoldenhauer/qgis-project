@@ -7,7 +7,7 @@ import pytest
 
 from qgis_project._spec import from_dict, from_json, to_dict, to_json
 from qgis_project.layer import Layer, RasterLayer, WebLayer
-from qgis_project.style import RasterStyle, RasterStyleBW
+from qgis_project.style import RasterStyle, RasterStyleBW, RasterStylePaletted
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +31,27 @@ def test_raster_layer_with_style_round_trip():
     assert isinstance(result[0].style, RasterStyleBW)
     assert result[0].style.vmin == 0.0
     assert result[0].style.vmax == 3000.0
+
+
+def test_raster_style_paletted_round_trip():
+    style = RasterStylePaletted(
+        colors={1: "#1b9e77", 2: "red"}, labels={1: "Forest"}
+    )
+    layers = [RasterLayer(file="lc.tif", style=style)]
+    result, _, _ = from_dict(to_dict(layers, "out.qgz"))
+    assert isinstance(result[0].style, RasterStylePaletted)
+    assert result[0].style.colors == {1: "#1b9e77", 2: "red"}
+    assert result[0].style.labels == {1: "Forest"}
+
+
+def test_raster_style_paletted_json_round_trip_stringifies_keys():
+    # JSON has no integer keys, so a round trip through to_json/from_json turns
+    # the band-value keys into strings. set_style() coerces them back with
+    # int(), so this is expected and the values must survive.
+    style = RasterStylePaletted(colors={1: "#1b9e77", 2: "red"})
+    layers = [RasterLayer(file="lc.tif", style=style)]
+    result, _, _ = from_json(to_json(layers, "out.qgz"))
+    assert result[0].style.colors == {"1": "#1b9e77", "2": "red"}
 
 
 def test_raster_style_no_limits_round_trip():

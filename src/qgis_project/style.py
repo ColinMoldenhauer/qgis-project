@@ -173,6 +173,69 @@ class RasterStyleMultiBandColor(RasterStyle):
 
 
 @dataclass
+class RasterStylePaletted(RasterStyle):
+    """
+    A paletted / unique-value style for single-band rasters — one fixed color
+    per discrete band value.
+
+    Suited to categorical rasters (land cover, classification masks, segmentation
+    output) where each pixel value is a class label rather than a continuous
+    measurement. Unlike `RasterStyleSinglePseudocolor`, no interpolation is
+    applied between values; `vmin`/`vmax` are ignored.
+
+    Parameters
+    ----------
+    colors : dict[int, str] | None
+        Explicit mapping of band value to color, e.g.
+        `{1: "#1b9e77", 2: "red", 3: "0,0,255"}`. If `None`, the distinct
+        values present in the band are detected automatically and assigned
+        colors from `colormap`.
+    labels : dict[int, str] | None
+        Optional mapping of band value to legend label. Values without an
+        entry fall back to the numeric value as their label.
+    colormap : str
+        Name of a QGIS built-in color ramp (case-insensitive) used to assign
+        colors when `colors` is not given, e.g. `"Spectral"`, `"Turbo"`,
+        `"Random colors"`. Run `QgsStyle.defaultStyle().colorRampNames()` to
+        see all available names.
+    """
+
+    colors: dict | None = None
+    labels: dict | None = None
+    colormap: str = "Spectral"
+
+    def set_style(self, layer: "Layer"):
+        from qgis.core import QgsPalettedRasterRenderer
+        from qgis.PyQt.QtGui import QColor
+
+        qgis_layer = layer.qgis_layer
+        band = getattr(layer, "band_idx", 1)
+        provider = qgis_layer.dataProvider()
+
+        # Keys may arrive as ints (in-process) or as strings (after a JSON
+        # round-trip in subprocess/local mode), so coerce band values to int.
+        labels = {int(k): v for k, v in (self.labels or {}).items()}
+
+        if self.colors is not None:
+            classes = QgsPalettedRasterRenderer.ClassData()
+            for key in sorted(self.colors, key=int):
+                value = int(key)
+                label = labels.get(value, str(value))
+                classes.append(
+                    QgsPalettedRasterRenderer.Class(value, QColor(self.colors[key]), label)
+                )
+        else:
+            ramp = _get_color_ramp(self.colormap)
+            classes = QgsPalettedRasterRenderer.classDataFromRaster(provider, band, ramp)
+            for klass in classes:
+                if int(klass.value) in labels:
+                    klass.label = labels[int(klass.value)]
+
+        qgis_layer.setRenderer(QgsPalettedRasterRenderer(provider, band, classes))
+        super().set_style(layer)
+
+
+@dataclass
 class VectorStyle(Style):
     """
     Base class for vector layer styling.

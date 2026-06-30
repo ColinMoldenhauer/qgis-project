@@ -166,6 +166,7 @@ from .style import (
     RasterStyleBW,
     RasterStyleSinglePseudocolor,
     RasterStyleMultiBandColor,
+    RasterStylePaletted,
     VectorStyle,
     VectorStyleSingleSymbol,
     VectorStyleCategorized,

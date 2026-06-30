@@ -10,6 +10,8 @@
 
 ::: qgis_project.RasterStyleMultiBandColor
 
+::: qgis_project.RasterStylePaletted
+
 ::: qgis_project.VectorStyle
 
 ::: qgis_project.VectorStyleSingleSymbol

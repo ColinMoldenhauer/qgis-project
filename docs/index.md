@@ -87,6 +87,7 @@ proj.add_layer(RasterLayer("slope.tif", group=["terrain", "derived"]))
 | `RasterStyleBW` | Grayscale with contrast stretch |
 | `RasterStyleSinglePseudocolor` | Single-band color ramp |
 | `RasterStyleMultiBandColor` | Multi-band RGB/false-color composite |
+| `RasterStylePaletted` | Paletted / unique-value colors for categorical rasters |
 
 ```python
 from qgis_project import RasterStyleBW
@@ -103,6 +104,22 @@ numbers `[R, G, B]`:
 from qgis_project import RasterStyleMultiBandColor
 
 layer = RasterLayer("rgb.tif", band_idx=[1, 2, 3], style=RasterStyleMultiBandColor())
+```
+
+`RasterStylePaletted` assigns a fixed color per discrete band value — ideal for
+categorical rasters like land cover. Pass an explicit `colors` mapping, or omit
+it to auto-detect the distinct values and color them from `colormap`:
+
+```python
+from qgis_project import RasterStylePaletted
+
+layer = RasterLayer(
+    "landcover.tif",
+    style=RasterStylePaletted(
+        colors={1: "#1b9e77", 2: "#d95f02", 3: "#7570b3"},
+        labels={1: "Forest", 2: "Urban", 3: "Water"},
+    ),
+)
 ```
 
 ### Vector styles

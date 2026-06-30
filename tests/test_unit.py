@@ -8,6 +8,7 @@ from qgis_project.layer import Layer, QgisLayerLinkError, RasterLayer, WebLayer,
 from qgis_project.style import (
     RasterStyle,
     RasterStyleBW,
+    RasterStylePaletted,
     RasterStyleSinglePseudocolor,
     Style,
     VectorStyleSingleSymbol,
@@ -133,6 +134,17 @@ def test_raster_style_bw_explicit_limits():
 
 def test_raster_style_single_pseudocolor_default_colormap():
     assert RasterStyleSinglePseudocolor().colormap == "viridis"
+
+def test_raster_style_paletted_defaults():
+    s = RasterStylePaletted()
+    assert s.colors is None
+    assert s.labels is None
+    assert s.colormap == "Spectral"
+
+def test_raster_style_paletted_explicit_colors():
+    s = RasterStylePaletted(colors={1: "red", 2: "#00ff00"}, labels={1: "Forest"})
+    assert s.colors == {1: "red", 2: "#00ff00"}
+    assert s.labels == {1: "Forest"}
 
 
 # ---------------------------------------------------------------------------
