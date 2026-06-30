@@ -10,6 +10,7 @@ qgis_project = pytest.importorskip("qgis_project", reason="qgis_project not impo
 Project = qgis_project.Project
 RasterLayer = qgis_project.RasterLayer
 RasterStyleBW = qgis_project.RasterStyleBW
+RasterStylePaletted = qgis_project.RasterStylePaletted
 WebLayer = qgis_project.WebLayer
 
 
@@ -65,6 +66,42 @@ def test_raster_style_bw_contrast_enhancement(qgis_app, sample_tif):
     ce = layer.qgis_layer.renderer().contrastEnhancement()
     assert ce.minimumValue() == vmin
     assert ce.maximumValue() == vmax
+    project.exit()
+
+
+def test_raster_style_paletted_explicit_colors(qgis_app, categorical_tif):
+    from qgis.core import QgsPalettedRasterRenderer
+    project = Project()
+    layer = RasterLayer(
+        file=str(categorical_tif),
+        style=RasterStylePaletted(
+            colors={1: "#ff0000", 2: "#00ff00", 3: "#0000ff"},
+            labels={1: "Forest", 2: "Urban"},
+        ),
+    )
+    project.add_layer(layer)
+    renderer = layer.qgis_layer.renderer()
+    assert isinstance(renderer, QgsPalettedRasterRenderer)
+
+    classes = {c.value: c for c in renderer.classes()}
+    assert set(classes) == {1, 2, 3}
+    assert classes[1].color.name() == "#ff0000"
+    assert classes[3].color.name() == "#0000ff"
+    # Explicit labels win; values without one fall back to the numeric value.
+    assert classes[1].label == "Forest"
+    assert classes[3].label == "3"
+    project.exit()
+
+
+def test_raster_style_paletted_auto_detects_classes(qgis_app, categorical_tif):
+    from qgis.core import QgsPalettedRasterRenderer
+    project = Project()
+    layer = RasterLayer(file=str(categorical_tif), style=RasterStylePaletted())
+    project.add_layer(layer)
+    renderer = layer.qgis_layer.renderer()
+    assert isinstance(renderer, QgsPalettedRasterRenderer)
+    # The three distinct band values are discovered from the raster itself.
+    assert {c.value for c in renderer.classes()} == {1, 2, 3}
     project.exit()
 
 

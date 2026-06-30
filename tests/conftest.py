@@ -90,6 +90,34 @@ def sample_tif(tmp_path_factory):
     return path
 
 
+@pytest.fixture(scope="session")
+def categorical_tif(tmp_path_factory):
+    """A small 10x10 single-band byte GeoTIFF, EPSG:4326, holding the three
+    discrete class values 1, 2, 3 — a stand-in for a land-cover/classification
+    raster used to exercise paletted styling."""
+    if not _QGIS_AVAILABLE:
+        pytest.skip("QGIS not installed")
+    try:
+        import numpy as np
+        from osgeo import gdal, osr
+    except ImportError:
+        pytest.skip("GDAL or numpy not available")
+
+    path = tmp_path_factory.mktemp("data") / "landcover.tif"
+    driver = gdal.GetDriverByName("GTiff")
+    ds = driver.Create(str(path), 10, 10, 1, gdal.GDT_Byte)
+    ds.SetGeoTransform([0.0, 1.0, 0.0, 10.0, 0.0, -1.0])
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+    # Tile the values 1, 2, 3 across the 100 cells so all three classes appear.
+    data = (np.arange(100, dtype=np.uint8) % 3 + 1).reshape(10, 10)
+    ds.GetRasterBand(1).WriteArray(data)
+    ds.FlushCache()
+    ds = None
+    return path
+
+
 _GEOJSON_FC = {
     "type": "FeatureCollection",
     "features": [
