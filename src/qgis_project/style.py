@@ -217,7 +217,9 @@ class RasterStylePaletted(RasterStyle):
         labels = {int(k): v for k, v in (self.labels or {}).items()}
 
         if self.colors is not None:
-            classes = QgsPalettedRasterRenderer.ClassData()
+            # ClassData is a C++ typedef for QVector<Class>, exposed to Python
+            # as a plain list — there is no ClassData() constructor.
+            classes = []
             for key in sorted(self.colors, key=int):
                 value = int(key)
                 label = labels.get(value, str(value))
