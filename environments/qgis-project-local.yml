@@ -1,0 +1,23 @@
+# qgis-project-local — very bare env, NO conda qgis (drives a LOCAL QGIS install)
+#
+# Use this to test the local-install execution strategy: this env runs ONLY the
+# Python code that builds the layer spec, then shells out to a separately
+# installed *standalone* QGIS via its bundled launcher (python-qgis.bat /
+# python-qgis.sh). All heavy GIS work happens in the QGIS-bundled Python, so this
+# env stays deliberately minimal — no qgis, no GDAL, no Qt. The Python version
+# here is unconstrained.
+#
+# Prerequisite: a standalone QGIS desktop install on this machine. If it is not
+# auto-detected, set QGIS_PREFIX_PATH. Force this mode with
+# QGIS_PROJECT_LAUNCH_MODE=local.
+#
+# Create from the repo root:  conda env create -f environments/qgis-project-local.yml
+name: qgis-project-local
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.9
+  - pip
+  - pip:
+      # The package itself (it has no runtime dependencies of its own).
+      - -e .

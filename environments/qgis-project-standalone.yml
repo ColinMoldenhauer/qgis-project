@@ -1,10 +1,11 @@
-# Strategy 1 — standalone QGIS, imported IN-PROCESS by an external Python
-#                                                  (QGIS_PROJECT_LAUNCH_MODE=env)
+# qgis-project-standalone — standalone QGIS, imported IN-PROCESS by an external
+#                           Python (QGIS_PROJECT_LAUNCH_MODE=env)
 #
-# This is the awkward one. You point an external interpreter at a separately
-# installed *standalone* QGIS and let qgis_project wire its bindings + native
-# DLLs into the running process (see _env._setup_windows). It avoids spawning a
-# subprocess (Strategy 2) and avoids a multi-hundred-MB conda qgis (Strategy 3),
+# Optional / advanced — NOT one of the three managed envs. You point an external
+# interpreter at a separately installed *standalone* QGIS and let qgis_project
+# wire its bindings + native DLLs into the running process (see
+# _env._setup_windows). It avoids spawning a subprocess (as qgis-project-local
+# does) and avoids a multi-hundred-MB conda qgis (as qgis-project-env does),
 # but it only works under one strict condition:
 #
 #   >>> this env's Python MUST exactly match the CPython that your standalone
@@ -21,10 +22,10 @@
 #
 # Then: set QGIS_PROJECT_LAUNCH_MODE=env, and QGIS_PREFIX_PATH if not auto-detected.
 #
-# Honestly, prefer Strategy 3 (strategy3-conda.yml) unless you specifically need
+# Honestly, prefer qgis-project-env (conda qgis) unless you specifically need
 # to reuse an existing desktop QGIS install without a second copy of the stack.
 #
-# Create from the repo root:  conda env create -f environments/strategy1-standalone.yml
+# Create from the repo root:  conda env create -f environments/qgis-project-standalone.yml
 name: qgis-project-standalone
 channels:
   - conda-forge

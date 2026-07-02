@@ -56,7 +56,7 @@ pip install qgis-project
 - ⚠️ Slightly hacky: execution runs in a separate process, so there are no live
   QGIS objects (e.g. no `snapshot()`).
 
-Ready-made env: [`environments/strategy2-wrapper.yml`](environments/strategy2-wrapper.yml).
+Ready-made env: [`environments/qgis-project-local.yml`](environments/qgis-project-local.yml).
 
 ### Option B — install QGIS from conda-forge (in-process)
 
@@ -64,8 +64,8 @@ Create a conda environment that includes the `qgis` package; that environment's
 Python interpreter then runs your script directly, in-process.
 
 ```bash
-conda env create -f environments/strategy3-conda.yml
-conda activate qgis-project-conda
+conda env create -f environments/qgis-project-env.yml
+conda activate qgis-project-env
 ```
 
 Or add QGIS to an existing environment:
@@ -280,7 +280,15 @@ proj.print_layer_tree()      # inspect the layer tree in the terminal
 
 ## Development
 
-Install with dev dependencies:
+Create the full development environment (QGIS from conda-forge, test + docs +
+Jupyter tooling, editable install):
+
+```bash
+conda env create -f environments/qgis-project-dev.yml
+conda activate qgis-project-dev
+```
+
+Or, in an environment that already has QGIS available, just add the dev deps:
 
 ```bash
 pip install -e ".[dev]"

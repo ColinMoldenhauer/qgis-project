@@ -1,0 +1,22 @@
+# qgis-project-env — bare runtime env, QGIS from conda-forge (in-process)
+#
+# The recommended user setup. conda-forge installs a `qgis` package whose Python
+# bindings are compiled for THIS environment's Python, so `import qgis` just
+# works and Project() runs in-process (QGIS_PROJECT_LAUNCH_MODE=env) — no
+# version-matching dance, no DLL preloading. qgis pulls in Qt5/PyQt, GDAL,
+# PROJ, etc. automatically.
+#
+# Nothing here but Python, qgis, and a local (editable) install of the package.
+#
+# Create from the repo root:  conda env create -f environments/qgis-project-env.yml
+name: qgis-project-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - qgis=3.44           # pin to a known-good release; bump deliberately, not automatically
+  - pip
+  - pip:
+      # Install the package without re-pulling deps already provided by conda.
+      - --no-deps
+      - -e .

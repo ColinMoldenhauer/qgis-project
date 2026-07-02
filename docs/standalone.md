@@ -56,7 +56,7 @@ serialized spec, and because execution happens in a separate process there are n
 live QGIS objects to inspect — `snapshot()` and other live-canvas features are
 unavailable.
 
-Ready-made env: [`environments/strategy2-wrapper.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/strategy2-wrapper.yml).
+Ready-made env: [`environments/qgis-project-local.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/qgis-project-local.yml).
 
 ### B — QGIS from conda-forge (in-process)
 
@@ -76,7 +76,7 @@ etc. — easily over 1 GB), and if you also have the desktop app you now keep tw
 copies of the QGIS stack on disk. The conda-forge QGIS version is independent of
 any desktop install.
 
-Ready-made env: [`environments/strategy3-conda.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/strategy3-conda.yml).
+Ready-made env: [`environments/qgis-project-env.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/qgis-project-env.yml).
 
 ### C — Manual in-process setup with a standalone install
 
@@ -99,7 +99,7 @@ This is the classic "dependency hell" path. When the Python versions don't match
 the package detects it and automatically falls back to approach A if a launcher is
 available.
 
-Ready-made env: [`environments/strategy1-standalone.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/strategy1-standalone.yml).
+Ready-made env: [`environments/qgis-project-standalone.yml`](https://github.com/ColinMoldenhauer/qgis-project/blob/main/environments/qgis-project-standalone.yml).
 
 ---
 

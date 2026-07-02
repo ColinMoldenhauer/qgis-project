@@ -1,0 +1,33 @@
+# qgis-project-dev — full development environment
+#
+# Everything needed to develop, test, document, and visually exercise the
+# package, all in one place. QGIS comes from conda-forge so the package runs
+# IN-PROCESS (QGIS_PROJECT_LAUNCH_MODE=env) — no standalone install required.
+#
+# Includes:
+#   - qgis + numpy        runtime / script needs (scripts/manual_test.py uses osgeo + numpy)
+#   - .[dev]              pytest, pytest-cov, mypy
+#   - .[docs]             mkdocs-material, mkdocstrings[python]
+#   - jupyter stack       ipykernel, jupyterlab, jupyter_rfb (examples/jupyter_preview.ipynb)
+#
+# Create from the repo root:  conda env create -f environments/qgis-project-dev.yml
+# Update:                     conda env update -f environments/qgis-project-dev.yml --prune
+name: qgis-project-dev
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - qgis=3.44           # known-good conda-forge build (matches the tested setup)
+  - numpy
+
+  # Jupyter / live-canvas preview
+  - ipykernel
+  - jupyterlab
+  - pip
+  - pip:
+      - jupyter_rfb     # live QGIS canvas in Jupyter (examples/jupyter_preview.ipynb)
+      - -e ".[dev,docs]"
+
+# After creating the env:
+#   conda activate qgis-project-dev
+#   python -m ipykernel install --user --name qgis-project-dev --display-name "Python (qgis-project)"
