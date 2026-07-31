@@ -6,15 +6,20 @@ import pytest
 # Import directly from submodules so this file is runnable without QGIS.
 from qgis_project.layer import (
     Layer,
+    MeshLayer,
     QgisLayerLinkError,
     RasterLayer,
     WebLayer,
     gdal_raster_source,
+    is_mesh_file,
     is_netcdf,
     layer_from_path,
     netcdf_name_and_group,
 )
 from qgis_project.style import (
+    MeshStyle,
+    MeshStyleScalar,
+    MeshStyleVector,
     RasterStyle,
     RasterStyleBW,
     RasterStylePaletted,
@@ -194,6 +199,70 @@ def test_layer_from_path_variable_builds_raster_layer():
 
 def test_raster_layer_variable_default_is_none():
     assert RasterLayer(file="climate.nc").variable is None
+
+
+# ---------------------------------------------------------------------------
+# MeshLayer / mesh detection
+# ---------------------------------------------------------------------------
+
+def test_is_mesh_file_by_extension():
+    assert is_mesh_file("terrain.2dm")
+    assert is_mesh_file("/data/model.SLF")
+    assert not is_mesh_file("dem.tif")
+    # NetCDF is intentionally not treated as mesh by extension (ambiguous).
+    assert not is_mesh_file("climate.nc")
+
+
+def test_mesh_layer_defaults():
+    layer = MeshLayer(file="terrain.2dm")
+    assert layer.dataset_group is None
+    assert layer.style is None
+
+
+def test_mesh_layer_get_dataset_groups_requires_link():
+    with pytest.raises(QgisLayerLinkError):
+        MeshLayer(file="terrain.2dm").get_dataset_groups()
+
+
+def test_layer_from_path_mesh_extension_builds_mesh_layer():
+    layer = layer_from_path("terrain.2dm")
+    assert type(layer) is MeshLayer
+
+
+def test_layer_from_path_dataset_group_builds_mesh_layer():
+    layer = layer_from_path("model.nc", dataset_group="water depth")
+    assert type(layer) is MeshLayer
+    assert layer.dataset_group == "water depth"
+
+
+def test_layer_from_path_mesh_style_builds_mesh_layer():
+    layer = layer_from_path("model.nc", style=MeshStyleScalar(colormap="Spectral"))
+    assert type(layer) is MeshLayer
+    assert isinstance(layer.style, MeshStyleScalar)
+
+
+def test_layer_from_path_netcdf_without_mesh_hint_stays_raster():
+    # A bare .nc still defaults to raster; mesh is opt-in.
+    assert type(layer_from_path("climate.nc")) is RasterLayer
+
+
+def test_mesh_style_scalar_defaults():
+    s = MeshStyleScalar()
+    assert s.colormap == "viridis"
+    assert s.vmin is None
+    assert s.vmax is None
+    assert s.dataset_group is None
+
+
+def test_mesh_style_vector_defaults():
+    s = MeshStyleVector()
+    assert s.color is None
+    assert s.line_width is None
+
+
+def test_mesh_style_is_style_subclass():
+    assert isinstance(MeshStyleScalar(), MeshStyle)
+    assert MeshStyle().opacity == 1.0
 
 
 # ---------------------------------------------------------------------------

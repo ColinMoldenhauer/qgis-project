@@ -14,6 +14,7 @@ from pathlib import Path
 
 from qgis_project.layer import (
     Layer,
+    MeshLayer,
     RasterLayer,
     WebLayer,
     gdal_raster_source,
@@ -118,6 +119,36 @@ class Project:
             )
         return children
 
+    @staticmethod
+    def _activate_mesh_group(qgis_layer, dataset_group):
+        """Set a mesh layer's active scalar dataset group by name or index."""
+        from qgis.core import QgsMeshDatasetIndex
+
+        indexes = list(qgis_layer.datasetGroupsIndexes())
+        group = dataset_group
+        if isinstance(dataset_group, str):
+            group = next(
+                (
+                    i
+                    for i in indexes
+                    if qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)).name()
+                    == dataset_group
+                ),
+                None,
+            )
+            if group is None:
+                names = ", ".join(
+                    qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)).name()
+                    for i in indexes
+                )
+                logger.warning(
+                    f"Dataset group {dataset_group!r} not found; available: {names}"
+                )
+                return
+        settings = qgis_layer.rendererSettings()
+        settings.setActiveScalarDatasetGroup(group)
+        qgis_layer.setRendererSettings(settings)
+
     def _add_layer(self, layer: Layer | WebLayer):
         """Add a layer to the project, expanding multi-variable NetCDF files."""
         if isinstance(layer, RasterLayer):
@@ -132,6 +163,7 @@ class Project:
         """Add one resolved layer to the underlying project."""
         from qgis.core import (
             QgsCoordinateReferenceSystem,
+            QgsMeshLayer,
             QgsRasterLayer,
             QgsVectorLayer,
         )
@@ -150,7 +182,10 @@ class Project:
 
             name = layer.get_layer_name()
             variable = getattr(layer, "variable", None)
-            if variable is not None:
+            if isinstance(layer, MeshLayer):
+                # Unstructured/curvilinear grids load through QGIS's MDAL provider.
+                qgis_layer = QgsMeshLayer(layer.file, name, "mdal")
+            elif variable is not None:
                 # A resolved NetCDF variable — load it directly through GDAL.
                 qgis_layer = QgsRasterLayer(
                     gdal_raster_source(layer.file, variable), name, "gdal"
@@ -181,6 +216,10 @@ class Project:
 
         if getattr(layer, "style", None) is not None:
             layer.style.set_style(layer)
+        elif isinstance(layer, MeshLayer) and layer.dataset_group is not None:
+            # No style, but a specific group was requested — make it the active
+            # scalar group so the right variable renders with QGIS defaults.
+            self._activate_mesh_group(qgis_layer, layer.dataset_group)
 
         if isinstance(qgis_layer, QgsVectorLayer) and getattr(layer, "labels", None) is not None:
             layer.labels.apply(layer)

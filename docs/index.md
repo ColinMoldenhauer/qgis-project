@@ -122,6 +122,43 @@ layer = RasterLayer(
 )
 ```
 
+### NetCDF and mesh data
+
+A NetCDF (`.nc`) file holds several named *variables*. By default every variable
+is added as its own raster layer; select one or a subset with `variable`:
+
+```python
+proj.add_layer("climate.nc")                              # all variables
+proj.add_layer("climate.nc", variable="temperature")      # one
+proj.add_layer("climate.nc", variable=["temperature", "precipitation"])
+```
+
+Variables in NetCDF-4 groups (`"/forecast/humidity"`) map onto the layer-tree
+group hierarchy, and a time dimension loads as raster bands (`band_idx` selects
+the step). `list_raster_variables("climate.nc")` lists the variables.
+
+For unstructured/curvilinear grids, vector datasets, or temporal animation, use
+a **mesh layer** (QGIS's MDAL provider) instead — the correct representation
+when a rectilinear raster can't describe the grid:
+
+```python
+from qgis_project import MeshLayer, MeshStyleScalar, MeshStyleVector
+
+proj.add_layer(MeshLayer("flood.nc",
+    style=MeshStyleScalar(dataset_group="water depth", colormap="Blues")))
+proj.add_layer(MeshLayer("currents.nc",
+    style=MeshStyleVector(dataset_group="velocity", color="white")))
+proj.add_layer("terrain.2dm")   # mesh-only extensions auto-detected
+```
+
+| Class | Effect |
+|---|---|
+| `MeshStyleScalar` | Colour a scalar dataset group with a continuous ramp |
+| `MeshStyleVector` | Render a vector dataset group as arrows |
+
+`dataset_group` picks the group by name or index (on the `MeshLayer`, or on the
+style to override); `list_mesh_dataset_groups(file)` lists them.
+
 ### Vector styles
 
 | Class | Effect |

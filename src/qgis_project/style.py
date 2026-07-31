@@ -238,6 +238,150 @@ class RasterStylePaletted(RasterStyle):
 
 
 @dataclass
+class MeshStyle(Style):
+    """
+    Base class for mesh layer styling.
+
+    Mesh rendering is driven by a *dataset group* (the equivalent of a raster
+    band / NetCDF variable). Subclasses activate a group and configure how it is
+    drawn.
+
+    Parameters
+    ----------
+    dataset_group : str or int or None
+        Dataset group to render, by name or index. If `None`, the layer's own
+        `dataset_group` is used; failing that, the first matching group.
+    """
+
+    dataset_group: str | int | None = None
+
+
+@dataclass
+class MeshStyleScalar(MeshStyle):
+    """
+    A scalar mesh style — a dataset group colored with a continuous ramp.
+
+    Parameters
+    ----------
+    colormap : str
+        Name of a QGIS built-in color ramp (case-insensitive), e.g. `"Viridis"`,
+        `"Spectral"`. Run `QgsStyle.defaultStyle().colorRampNames()` to list them.
+    vmin, vmax : float or None
+        Bounds of the color ramp. If `None`, the group's own minimum/maximum
+        (across all time steps) are used.
+    """
+
+    colormap: str = "viridis"
+    vmin: float | None = None
+    vmax: float | None = None
+
+    def set_style(self, layer: "Layer"):
+        from qgis.core import QgsColorRampShader, QgsMeshDatasetIndex
+
+        qgis_layer = layer.qgis_layer
+        group = _resolve_mesh_dataset_group(
+            qgis_layer, self.dataset_group, getattr(layer, "dataset_group", None)
+        )
+        meta = qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(group, 0))
+
+        vmin = self.vmin if self.vmin is not None else meta.minimum()
+        vmax = self.vmax if self.vmax is not None else meta.maximum()
+
+        ramp = _get_color_ramp(self.colormap)
+        shader = QgsColorRampShader(vmin, vmax, ramp)
+        shader.setColorRampType(QgsColorRampShader.Interpolated)
+        shader.classifyColorRamp()
+
+        settings = qgis_layer.rendererSettings()
+        settings.setActiveScalarDatasetGroup(group)
+        scalar = settings.scalarSettings(group)
+        scalar.setColorRampShader(shader)
+        scalar.setClassificationMinimumMaximum(vmin, vmax)
+        settings.setScalarSettings(group, scalar)
+        qgis_layer.setRendererSettings(settings)
+        super().set_style(layer)
+
+
+@dataclass
+class MeshStyleVector(MeshStyle):
+    """
+    A vector mesh style — a vector dataset group (e.g. velocity) drawn as arrows.
+
+    Parameters
+    ----------
+    color : str or None
+        Arrow color, e.g. `"blue"`, `"#0000ff"`. If `None`, the QGIS default
+        is kept.
+    line_width : float or None
+        Arrow line width. If `None`, the QGIS default is kept.
+    """
+
+    color: str | None = None
+    line_width: float | None = None
+
+    def set_style(self, layer: "Layer"):
+        from qgis.PyQt.QtGui import QColor
+
+        qgis_layer = layer.qgis_layer
+        group = _resolve_mesh_dataset_group(
+            qgis_layer,
+            self.dataset_group,
+            getattr(layer, "dataset_group", None),
+            want_vector=True,
+        )
+
+        settings = qgis_layer.rendererSettings()
+        settings.setActiveVectorDatasetGroup(group)
+        vector = settings.vectorSettings(group)
+        if self.color is not None:
+            vector.setColor(QColor(self.color))
+        if self.line_width is not None:
+            vector.setLineWidth(self.line_width)
+        settings.setVectorSettings(group, vector)
+        qgis_layer.setRendererSettings(settings)
+        super().set_style(layer)
+
+
+def _resolve_mesh_dataset_group(qgis_layer, style_group, layer_group, want_vector=False):
+    """Resolve a dataset-group selector to a group index on a mesh layer.
+
+    Precedence: the style's `dataset_group`, then the layer's `dataset_group`.
+    A string is matched against group names; an int is used as-is; `None` picks
+    the first group of the requested kind (vector if *want_vector*, else scalar),
+    falling back to the first group of any kind.
+    """
+    from qgis.core import QgsMeshDatasetIndex
+
+    selector = style_group if style_group is not None else layer_group
+
+    indexes = list(qgis_layer.datasetGroupsIndexes())
+    metas = {
+        i: qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)) for i in indexes
+    }
+
+    if isinstance(selector, int):
+        return selector
+    if isinstance(selector, str):
+        for i in indexes:
+            if metas[i].name() == selector:
+                return i
+        available = ", ".join(metas[i].name() for i in indexes)
+        raise ValueError(
+            f"Dataset group {selector!r} not found on layer "
+            f"{layer_group if isinstance(layer_group, str) else ''!r}. "
+            f"Available: {available}"
+        )
+
+    # selector is None — pick the first group of the requested kind.
+    for i in indexes:
+        if want_vector and not metas[i].isScalar():
+            return i
+        if not want_vector and metas[i].isScalar():
+            return i
+    return indexes[0] if indexes else 0
+
+
+@dataclass
 class VectorStyle(Style):
     """
     Base class for vector layer styling.

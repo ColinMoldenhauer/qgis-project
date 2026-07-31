@@ -159,8 +159,8 @@ class Project:
         return _resolve_backend()(*args, **kwargs)
 
 
-from .layer import Layer, ProcessingOp, RasterLayer, WebLayer
-from .utils import list_raster_variables
+from .layer import Layer, MeshLayer, ProcessingOp, RasterLayer, WebLayer
+from .utils import list_mesh_dataset_groups, list_raster_variables
 from .style import (
     Style,
     RasterStyle,
@@ -168,6 +168,9 @@ from .style import (
     RasterStyleSinglePseudocolor,
     RasterStyleMultiBandColor,
     RasterStylePaletted,
+    MeshStyle,
+    MeshStyleScalar,
+    MeshStyleVector,
     VectorStyle,
     VectorStyleSingleSymbol,
     VectorStyleCategorized,

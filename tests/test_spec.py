@@ -6,8 +6,14 @@ import json
 import pytest
 
 from qgis_project._spec import from_dict, from_json, to_dict, to_json
-from qgis_project.layer import Layer, RasterLayer, WebLayer
-from qgis_project.style import RasterStyle, RasterStyleBW, RasterStylePaletted
+from qgis_project.layer import Layer, MeshLayer, RasterLayer, WebLayer
+from qgis_project.style import (
+    MeshStyleScalar,
+    MeshStyleVector,
+    RasterStyle,
+    RasterStyleBW,
+    RasterStylePaletted,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +93,38 @@ def test_multiple_layers_round_trip():
     result, _, _ = from_dict(to_dict(layers, "out.qgz"))
     assert len(result) == 2
     assert isinstance(result[1], RasterLayer)
+
+
+def test_mesh_layer_scalar_style_round_trip():
+    layers = [
+        MeshLayer(
+            file="model.nc",
+            dataset_group="water depth",
+            style=MeshStyleScalar(colormap="Spectral", vmin=0.0, vmax=5.0),
+        )
+    ]
+    result, _, _ = from_dict(to_dict(layers, "out.qgz"))
+    assert isinstance(result[0], MeshLayer)
+    assert result[0].dataset_group == "water depth"
+    assert isinstance(result[0].style, MeshStyleScalar)
+    assert result[0].style.colormap == "Spectral"
+    assert result[0].style.vmax == 5.0
+
+
+def test_mesh_layer_vector_style_round_trip():
+    layers = [MeshLayer(file="model.nc", style=MeshStyleVector(color="blue", line_width=0.5))]
+    result, _, _ = from_dict(to_dict(layers, "out.qgz"))
+    assert isinstance(result[0].style, MeshStyleVector)
+    assert result[0].style.color == "blue"
+    assert result[0].style.line_width == 0.5
+
+
+def test_mesh_layer_no_style_round_trip():
+    layers = [MeshLayer(file="terrain.2dm", dataset_group=0)]
+    result, _, _ = from_dict(to_dict(layers, "out.qgz"))
+    assert isinstance(result[0], MeshLayer)
+    assert result[0].dataset_group == 0
+    assert result[0].style is None
 
 
 def test_web_layer_round_trip():

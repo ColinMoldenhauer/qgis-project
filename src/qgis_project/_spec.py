@@ -54,8 +54,11 @@ def _layer_to_dict(layer) -> dict:
 
 
 def _layer_from_dict(d: dict):
-    from .layer import Layer, RasterLayer, WebLayer
+    from .layer import Layer, MeshLayer, RasterLayer, WebLayer
     from .style import (
+        MeshStyle,
+        MeshStyleScalar,
+        MeshStyleVector,
         RasterStyle,
         RasterStyleBW,
         RasterStyleSinglePseudocolor,
@@ -74,6 +77,9 @@ def _layer_from_dict(d: dict):
         "RasterStyleSinglePseudocolor": RasterStyleSinglePseudocolor,
         "RasterStyleMultiBandColor": RasterStyleMultiBandColor,
         "RasterStylePaletted": RasterStylePaletted,
+        "MeshStyle": MeshStyle,
+        "MeshStyleScalar": MeshStyleScalar,
+        "MeshStyleVector": MeshStyleVector,
         "VectorStyle": VectorStyle,
         "VectorStyleSingleSymbol": VectorStyleSingleSymbol,
         "VectorStyleCategorized": VectorStyleCategorized,
@@ -95,6 +101,8 @@ def _layer_from_dict(d: dict):
         return Layer(**d)
     if layer_type == "RasterLayer":
         return RasterLayer(**d)
+    if layer_type == "MeshLayer":
+        return MeshLayer(**d)
     if layer_type == "WebLayer":
         return WebLayer(**d)
     raise ValueError(f"Unknown layer type: {layer_type!r}")

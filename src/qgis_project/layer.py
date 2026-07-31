@@ -9,17 +9,28 @@ from dataclasses import dataclass, field
 from functools import wraps
 import pickle
 
-from qgis_project.style import RasterStyle, VectorLabels, VectorStyle
+from qgis_project.style import MeshStyle, RasterStyle, VectorLabels, VectorStyle
 
 
 # File extensions handled through GDAL's NetCDF driver, where a single file is
 # a container of one or more named variables (subdatasets).
 NETCDF_EXTENSIONS = (".nc", ".nc4", ".cdf", ".netcdf")
 
+# Mesh-only formats read through QGIS's MDAL provider (unstructured/curvilinear
+# grids). NetCDF is intentionally excluded: it is ambiguous — a rectilinear
+# NetCDF is better as a GDAL raster — so mesh loading of NetCDF is opt-in via
+# an explicit MeshLayer rather than extension sniffing.
+MESH_EXTENSIONS = (".2dm", ".slf", ".sww", ".mesh")
+
 
 def is_netcdf(file: str) -> bool:
     """Return True if *file* has a NetCDF extension (see `NETCDF_EXTENSIONS`)."""
     return os.path.splitext(str(file))[1].lower() in NETCDF_EXTENSIONS
+
+
+def is_mesh_file(file: str) -> bool:
+    """Return True if *file* has an unambiguous mesh extension (`MESH_EXTENSIONS`)."""
+    return os.path.splitext(str(file))[1].lower() in MESH_EXTENSIONS
 
 
 def gdal_raster_source(file: str, variable: str | None) -> str:
@@ -230,15 +241,60 @@ class RasterLayer(Layer):
         self.band_idx = band_idx
 
 
-def layer_from_path(file: str, **kwargs) -> Layer:
-    """Build a :class:`Layer` or :class:`RasterLayer` from a file path and kwargs.
+@dataclass
+class MeshLayer(Layer):
+    """A mesh layer — unstructured/curvilinear grids read via QGIS's MDAL
+    provider (TELEMAC, UGRID/NetCDF, 2DM, ADCIRC, ...).
 
-    Chooses :class:`RasterLayer` when a raster-specific keyword is present
-    (a :class:`RasterStyle` style, `band_idx`, or `statistics_kwargs`);
-    otherwise returns a plain :class:`Layer`. This lets callers pass raster
-    styling directly to `add_layer` without wrapping the path in a
-    `RasterLayer` themselves.
+    A mesh file holds one or more *dataset groups* (the equivalent of variables,
+    e.g. `"Bed Elevation"`, `"water depth"`, `"velocity"`), each of which may be
+    scalar or vector and may carry a time dimension for animation. Unlike a
+    raster, the whole file is a single layer; `dataset_group` selects which
+    group is rendered.
+
+    Parameters
+    ----------
+    dataset_group : str or int or None
+        The dataset group to render, by name or index. If `None`, the first
+        scalar group (or the first group) is used. A `MeshStyle` may override
+        this per style.
+    style : MeshStyle or None
+        Mesh styling (`MeshStyleScalar` for a colored scalar field,
+        `MeshStyleVector` for arrows). If `None`, QGIS's default mesh
+        rendering is used.
     """
+
+    dataset_group: str | int | None = None
+    style: MeshStyle | None = None
+
+    def get_dataset_groups(self):
+        """Return the mesh's dataset group names (requires a linked QGIS layer)."""
+        if not hasattr(self, "qgis_layer"):
+            raise QgisLayerLinkError()
+        from qgis.core import QgsMeshDatasetIndex
+
+        return [
+            self.qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)).name()
+            for i in self.qgis_layer.datasetGroupsIndexes()
+        ]
+
+
+def layer_from_path(file: str, **kwargs) -> Layer:
+    """Build a :class:`Layer`, :class:`RasterLayer`, or :class:`MeshLayer` from a
+    file path and kwargs.
+
+    Chooses :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
+    style or `dataset_group`) or an unambiguous mesh extension; :class:`RasterLayer`
+    for a raster-specific keyword (a :class:`RasterStyle` style, `band_idx`,
+    `statistics_kwargs`, `variable`) or a NetCDF file; otherwise a plain
+    :class:`Layer`. This lets callers pass styling directly to `add_layer`
+    without wrapping the path themselves.
+    """
+    is_mesh = (
+        isinstance(kwargs.get("style"), MeshStyle)
+        or "dataset_group" in kwargs
+        or is_mesh_file(file)
+    )
     is_raster = (
         isinstance(kwargs.get("style"), RasterStyle)
         or "band_idx" in kwargs
@@ -246,7 +302,12 @@ def layer_from_path(file: str, **kwargs) -> Layer:
         or "variable" in kwargs
         or is_netcdf(file)
     )
-    cls = RasterLayer if is_raster else Layer
+    if is_mesh:
+        cls: type[Layer] = MeshLayer
+    elif is_raster:
+        cls = RasterLayer
+    else:
+        cls = Layer
     return cls(file, **kwargs)
 
 

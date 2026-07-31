@@ -10,8 +10,8 @@ import pytest
 
 from qgis_project._env import find_qgis_launcher
 from qgis_project._subprocess import SubprocessProject
-from qgis_project.layer import Layer, ProcessingOp, RasterLayer, WebLayer
-from qgis_project.style import RasterStyleBW, RasterStylePaletted
+from qgis_project.layer import Layer, MeshLayer, ProcessingOp, RasterLayer, WebLayer
+from qgis_project.style import MeshStyleScalar, RasterStyleBW, RasterStylePaletted
 
 
 # Skip entire module if no launcher is found
@@ -152,6 +152,16 @@ def test_save_netcdf_all_variables(tmp_path, sample_nc):
     p = SubprocessProject()
     p.add_layer(str(sample_nc))
     out = tmp_path / "climate.qgz"
+    p.save(str(out))
+    assert out.exists()
+    assert out.stat().st_size > 0
+
+
+@pytest.mark.launcher
+def test_save_mesh_layer(tmp_path, sample_2dm):
+    p = SubprocessProject()
+    p.add_layer(MeshLayer(file=str(sample_2dm), style=MeshStyleScalar(colormap="Viridis")))
+    out = tmp_path / "mesh.qgz"
     p.save(str(out))
     assert out.exists()
     assert out.stat().st_size > 0

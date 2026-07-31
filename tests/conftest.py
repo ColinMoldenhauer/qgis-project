@@ -172,6 +172,28 @@ def sample_nc(tmp_path_factory):
     return path
 
 
+@pytest.fixture(scope="session")
+def sample_2dm(tmp_path_factory):
+    """A minimal SMS 2DM mesh: 4 nodes, 2 triangles, with node elevations.
+
+    2DM is a plain-text mesh format read by QGIS's MDAL provider. MDAL derives
+    a ``"Bed Elevation"`` scalar dataset group from the node Z values, so this
+    fixture exercises mesh loading and scalar styling without needing a separate
+    dataset file. No CRS is embedded (typical for 2DM).
+    """
+    path = tmp_path_factory.mktemp("data") / "terrain.2dm"
+    path.write_text(
+        "MESH2D\n"
+        "ND 1 0.0 0.0 10.0\n"
+        "ND 2 1.0 0.0 20.0\n"
+        "ND 3 1.0 1.0 30.0\n"
+        "ND 4 0.0 1.0 40.0\n"
+        "E3T 1 1 2 3 1\n"
+        "E3T 2 1 3 4 1\n"
+    )
+    return path
+
+
 _GEOJSON_FC = {
     "type": "FeatureCollection",
     "features": [

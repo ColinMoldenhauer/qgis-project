@@ -209,6 +209,55 @@ from qgis_project import list_raster_variables
 list_raster_variables("climate.nc")   # ['temperature', 'precipitation', '/forecast/humidity']
 ```
 
+### Mesh layers
+
+Unstructured or curvilinear grids — hydrodynamic/ocean models, UGRID, TELEMAC,
+ADCIRC, 2DM, and CF-mesh NetCDF — are loaded as **mesh layers** through QGIS's
+MDAL provider with `MeshLayer`. A mesh holds one or more *dataset groups* (its
+variables, e.g. `"Bed Elevation"`, `"water depth"`, `"velocity"`), each scalar
+or vector and optionally carrying a time dimension for animation.
+
+**Raster vs. mesh for NetCDF.** A `.nc` file defaults to a *raster* (see above),
+which is the right choice for a regular rectilinear grid. Reach for `MeshLayer`
+when the data is unstructured/curvilinear, has vector datasets, or you want
+temporal animation — cases a raster cannot represent. Mesh loading of NetCDF is
+opt-in precisely because the file extension alone is ambiguous:
+
+```python
+from qgis_project import MeshLayer, MeshStyleScalar, MeshStyleVector
+
+# Colour a scalar dataset group with a ramp (min/max auto-detected if omitted)
+proj.add_layer(MeshLayer(
+    "flood.nc",
+    style=MeshStyleScalar(dataset_group="water depth", colormap="Blues", vmin=0, vmax=5),
+))
+
+# Draw a vector dataset group as arrows
+proj.add_layer(MeshLayer(
+    "currents.nc",
+    style=MeshStyleVector(dataset_group="velocity", color="white", line_width=0.4),
+))
+
+# 2DM and other mesh-only extensions are detected automatically
+proj.add_layer("terrain.2dm")
+```
+
+| Class | Effect |
+|---|---|
+| `MeshStyleScalar` | Colour a scalar dataset group with a continuous ramp |
+| `MeshStyleVector` | Render a vector dataset group as arrows |
+
+`dataset_group` selects the group by name or index; set it on the `MeshLayer`
+(applies with QGIS's default rendering) or on the style (overrides, per style).
+If omitted, the first scalar/vector group is used. List a file's groups without
+loading it (requires QGIS in the current environment):
+
+```python
+from qgis_project import list_mesh_dataset_groups
+
+list_mesh_dataset_groups("flood.nc")   # ['Bed Elevation', 'water depth', 'velocity']
+```
+
 ### Vector styling
 
 | Class | Effect |

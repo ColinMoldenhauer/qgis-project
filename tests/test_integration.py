@@ -11,6 +11,8 @@ Project = qgis_project.Project
 RasterLayer = qgis_project.RasterLayer
 RasterStyleBW = qgis_project.RasterStyleBW
 RasterStylePaletted = qgis_project.RasterStylePaletted
+MeshLayer = qgis_project.MeshLayer
+MeshStyleScalar = qgis_project.MeshStyleScalar
 WebLayer = qgis_project.WebLayer
 
 
@@ -202,6 +204,107 @@ def test_netcdf_nested_group_maps_to_layer_group(qgis_app, sample_nc):
     root = QgsProject.instance().layerTreeRoot()
     groups = [c.name() for c in root.children() if isinstance(c, QgsLayerTreeGroup)]
     assert "forecast" in groups
+    project.exit()
+
+
+# ---------------------------------------------------------------------------
+# Mesh layers (MDAL provider)
+# ---------------------------------------------------------------------------
+
+def _skip_without_mdal(sample_2dm):
+    """Skip if this QGIS build cannot read meshes (MDAL provider missing)."""
+    from qgis.core import QgsMeshLayer
+    if not QgsMeshLayer(str(sample_2dm), "probe", "mdal").isValid():
+        pytest.skip("MDAL mesh provider unavailable in this QGIS build")
+
+
+def test_add_mesh_layer_is_valid(qgis_app, sample_2dm):
+    from qgis.core import QgsMeshLayer, QgsProject
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm))
+    project.add_layer(layer)
+    assert layer.qgis_layer.isValid()
+    assert isinstance(layer.qgis_layer, QgsMeshLayer)
+    assert len(QgsProject.instance().mapLayers()) == 1
+    project.exit()
+
+
+def test_mesh_layer_has_dataset_groups(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm))
+    project.add_layer(layer)
+    # MDAL derives a scalar group (e.g. "Bed Elevation") from the 2DM node Zs.
+    groups = layer.get_dataset_groups()
+    assert len(groups) >= 1
+    project.exit()
+
+
+def test_list_mesh_dataset_groups_helper(qgis_app, sample_2dm):
+    from qgis_project import list_mesh_dataset_groups
+    _skip_without_mdal(sample_2dm)
+    groups = list_mesh_dataset_groups(str(sample_2dm))
+    assert len(groups) >= 1
+
+
+def test_mesh_scalar_style_sets_active_group_and_ramp(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm), style=MeshStyleScalar(colormap="Viridis"))
+    project.add_layer(layer)
+    settings = layer.qgis_layer.rendererSettings()
+    active = settings.activeScalarDatasetGroup()
+    assert active >= 0
+    # The scalar renderer now carries a classified color ramp shader.
+    shader = settings.scalarSettings(active).colorRampShader()
+    assert len(shader.colorRampItemList()) > 0
+    project.exit()
+
+
+def test_mesh_scalar_style_explicit_limits(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(
+        file=str(sample_2dm), style=MeshStyleScalar(vmin=0.0, vmax=100.0)
+    )
+    project.add_layer(layer)
+    settings = layer.qgis_layer.rendererSettings()
+    scalar = settings.scalarSettings(settings.activeScalarDatasetGroup())
+    assert scalar.classificationMinimum() == 0.0
+    assert scalar.classificationMaximum() == 100.0
+    project.exit()
+
+
+def test_mesh_dataset_group_by_name_activates(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    # Discover the real group name, then request it explicitly with no style.
+    probe = MeshLayer(file=str(sample_2dm))
+    project.add_layer(probe)
+    group_name = probe.get_dataset_groups()[0]
+    project.exit()
+
+    from qgis.core import QgsProject
+    QgsProject.instance().clear()
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm), dataset_group=group_name)
+    project.add_layer(layer)
+    settings = layer.qgis_layer.rendererSettings()
+    assert settings.activeScalarDatasetGroup() >= 0
+    project.exit()
+
+
+def test_mesh_layer_in_group(qgis_app, sample_2dm):
+    from qgis.core import QgsLayerTreeGroup, QgsProject
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    project.add_layer(MeshLayer(file=str(sample_2dm), group="hydro"))
+    root = QgsProject.instance().layerTreeRoot()
+    assert any(
+        isinstance(c, QgsLayerTreeGroup) and c.name() == "hydro"
+        for c in root.children()
+    )
     project.exit()
 
 

@@ -45,6 +45,26 @@ def list_raster_variables(file: str) -> list[str]:
     return tokens
 
 
+def list_mesh_dataset_groups(file: str) -> list[str]:
+    """Return the dataset group names in a mesh file (via QGIS's MDAL provider).
+
+    Dataset groups are a mesh's variables — e.g. `"Bed Elevation"`,
+    `"water depth"`, `"velocity"` — and are what you pass as
+    `MeshLayer(..., dataset_group=...)`. Returns an empty list if the file
+    cannot be read as a mesh. Requires QGIS to be importable in the current
+    interpreter (an in-process/env backend), not subprocess mode.
+    """
+    from qgis.core import QgsMeshDatasetIndex, QgsMeshLayer
+
+    layer = QgsMeshLayer(str(file), "mesh", "mdal")
+    if not layer.isValid():
+        return []
+    return [
+        layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)).name()
+        for i in layer.datasetGroupsIndexes()
+    ]
+
+
 def get_layer_by_idx(project, idx: int):
     """Return the QGIS layer at position *idx* in a flat, depth-first traversal of the layer tree."""
     layers = [
