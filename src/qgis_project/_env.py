@@ -6,6 +6,8 @@ contains no `from qgis` imports. It is the first thing __init__.py imports so
 that subsequent modules with module-level qgis imports can succeed.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import platform
