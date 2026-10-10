@@ -45,6 +45,62 @@ def list_raster_variables(file: str) -> list[str]:
     return tokens
 
 
+def list_datacube_variables(
+    file: str, dataset: str = "", ref: str | None = None
+) -> list[str]:
+    """Return the variable names in a Zarr, Icechunk or NetCDF datacube.
+
+    The names are what you pass as `DatacubeLayer(..., variable=...)`;
+    `dataset` and `ref` have the same meaning as there. Reads the store with
+    the Datacube Viewer plugin's own reader, so it needs the
+    `qgis-datacube-viewer` package in the current interpreter (QGIS itself is
+    not needed). Raises if the store cannot be read.
+    """
+    from qgis_project import _datacube
+
+    return _datacube.list_variables(file, dataset, ref)
+
+
+#: Entry point group through which a package offers a QGIS data provider to
+#: `RasterLayer(provider=...)`: the entry point's name is the provider key, and
+#: it loads a callable that registers the provider with QGIS.
+PROVIDER_ENTRY_POINTS = "qgis_project.providers"
+
+
+def _provider_entry_points() -> list:
+    from importlib.metadata import entry_points
+
+    found = entry_points()
+    if hasattr(found, "select"):  # Python 3.10+
+        return list(found.select(group=PROVIDER_ENTRY_POINTS))
+    return list(found.get(PROVIDER_ENTRY_POINTS, []))  # Python 3.9
+
+
+def ensure_provider(key: str) -> bool:
+    """Make sure the QGIS data provider *key* is registered; return whether it is.
+
+    QGIS's own providers (`gdal`, `ogr`, `wms`, ...) and those registered by a
+    plugin running in this QGIS are there already. Any other is looked up in
+    the `qgis_project.providers` entry points of the installed packages and
+    registered from there.
+    """
+    from qgis.core import QgsProviderRegistry
+
+    registry = QgsProviderRegistry.instance()
+    if key in registry.providerList():
+        return True
+    for entry_point in _provider_entry_points():
+        if entry_point.name == key:
+            try:
+                entry_point.load()()
+            except Exception as exc:
+                logger.error(
+                    f"Registering provider {key!r} from {entry_point.value} failed: {exc!r}"
+                )
+            break
+    return key in registry.providerList()
+
+
 def list_mesh_dataset_groups(file: str) -> list[str]:
     """Return the dataset group names in a mesh file (via QGIS's MDAL provider).
 

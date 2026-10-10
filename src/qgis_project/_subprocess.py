@@ -19,7 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .layer import Layer, ProcessingOp, WebLayer, layer_from_path
+from .layer import DatacubeLayer, Layer, ProcessingOp, WebLayer, layer_from_path
 from .utils import normalize_crs
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,14 @@ class SubprocessProject:
         if isinstance(layer, str):
             layer = layer_from_path(layer, **kwargs)
         self._layers.append(layer)
+
+    def add_datacube_layer(self, file: str, **kwargs) -> None:
+        """Append a datacube layer to the pending spec (see :meth:`Project.add_datacube_layer`).
+
+        Only the QGIS side needs the `qgis-datacube-viewer` package: the
+        variables are listed and the layers made when the executor runs.
+        """
+        self._layers.append(DatacubeLayer(file, **kwargs))
 
     def remove_layer(self, layer: Layer | str) -> None:
         """Remove a layer from the pending spec by path."""

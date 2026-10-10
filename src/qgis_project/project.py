@@ -12,7 +12,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from qgis_project import _datacube
 from qgis_project.layer import (
+    DatacubeLayer,
     Layer,
     MeshLayer,
     RasterLayer,
@@ -22,8 +24,10 @@ from qgis_project.layer import (
     layer_from_path,
     netcdf_name_and_group,
 )
+from qgis_project.style import RasterStylePaletted
 from qgis_project.utils import (
     add_or_get_group,
+    ensure_provider,
     get_layer_by_idx,
     layer_exists_by_path,
     list_raster_variables,
@@ -119,6 +123,84 @@ class Project:
             )
         return children
 
+    def _resolve_datacube(self, layer: DatacubeLayer) -> list[DatacubeLayer]:
+        """Expand a datacube layer into one concrete layer per variable.
+
+        Named and grouped like NetCDF variables (see `netcdf_name_and_group`).
+        A single named variable is passed through without opening the store;
+        the provider reports it if it does not exist. Returns an empty list,
+        after logging why, when the store cannot be read.
+        """
+        variable = layer.variable
+        if isinstance(variable, str):
+            requested = [variable]
+        else:
+            try:
+                available = _datacube.list_variables(layer.file, layer.dataset, layer.ref)
+            except Exception as exc:
+                logger.error(f"Cannot read datacube {layer.file}: {exc}")
+                return []
+            if variable is None:
+                requested = available
+            else:
+                requested = [v for v in variable if v in available]
+                unknown = [v for v in variable if v not in available]
+                if unknown:
+                    logger.warning(
+                        f"Variable(s) not found in {layer.file}: {', '.join(unknown)}. "
+                        f"Available: {', '.join(available)}"
+                    )
+
+        # A store is often a directory, given with a trailing slash.
+        store = str(layer.file).rstrip("/\\")
+        multiple = len(requested) > 1
+        children = []
+        for token in requested:
+            name, group = netcdf_name_and_group(store, token, layer.group, layer.name, multiple)
+            children.append(
+                dataclasses.replace(layer, variable=token, name=name, group=group)
+            )
+        return children
+
+    @staticmethod
+    def _provider_raster_layer(layer: RasterLayer, name: str, provider: str):
+        """Open *layer* through the raster data provider *provider*.
+
+        Returns the `QgsRasterLayer`, or None after logging why it could not
+        be opened.
+        """
+        from qgis.core import QgsRasterLayer
+
+        try:
+            if isinstance(layer, DatacubeLayer):
+                source = _datacube.source(layer)
+            elif provider == "gdal":
+                source = gdal_raster_source(layer.file, layer.variable)
+            else:
+                source = str(layer.file)
+        except (ImportError, ValueError) as exc:
+            logger.error(f"Cannot open {layer.file}: {exc}")
+            return None
+
+        if not ensure_provider(provider):
+            logger.error(
+                f"Raster provider {provider!r} is not available in this QGIS. Install "
+                "the Python package that provides it into the Python that runs QGIS, "
+                "or enable the QGIS plugin that registers it."
+            )
+            return None
+
+        qgis_layer = QgsRasterLayer(source, name, provider)
+        if not qgis_layer.isValid():
+            data_provider = qgis_layer.dataProvider()
+            detail = data_provider.lastError() if data_provider is not None else ""
+            logger.error(
+                f"Provider {provider!r} could not open {layer.file}"
+                + (f": {detail}" if detail else "")
+            )
+            return None
+        return qgis_layer
+
     @staticmethod
     def _activate_mesh_group(qgis_layer, dataset_group):
         """Set a mesh layer's active scalar dataset group by name or index."""
@@ -150,8 +232,14 @@ class Project:
         qgis_layer.setRendererSettings(settings)
 
     def _add_layer(self, layer: Layer | WebLayer):
-        """Add a layer to the project, expanding multi-variable NetCDF files."""
-        if isinstance(layer, RasterLayer):
+        """Add a layer to the project, expanding multi-variable NetCDF files and datacubes."""
+        if isinstance(layer, DatacubeLayer):
+            for child in self._resolve_datacube(layer):
+                self._add_single_layer(child)
+            return
+        # Variables of a NetCDF file are GDAL subdatasets: another provider
+        # addresses them its own way, if at all.
+        if isinstance(layer, RasterLayer) and layer.provider in (None, "gdal"):
             resolved = self._resolve_netcdf(layer)
             if resolved is not None:
                 for child in resolved:
@@ -176,7 +264,10 @@ class Project:
                     layer.uri, layer.get_layer_name(), layer.provider
                 )
         else:
-            if not os.path.exists(layer.file):
+            provider = getattr(layer, "provider", None)
+            # A layer with a provider set may name a URL or a provider URI; the
+            # provider judges whether its source exists.
+            if provider is None and not os.path.exists(layer.file):
                 logger.error(f"File does not exist: {layer.file}")
                 return
 
@@ -185,6 +276,10 @@ class Project:
             if isinstance(layer, MeshLayer):
                 # Unstructured/curvilinear grids load through QGIS's MDAL provider.
                 qgis_layer = QgsMeshLayer(layer.file, name, "mdal")
+            elif provider is not None:
+                qgis_layer = self._provider_raster_layer(layer, name, provider)
+                if qgis_layer is None:
+                    return
             elif variable is not None:
                 # A resolved NetCDF variable — load it directly through GDAL.
                 qgis_layer = QgsRasterLayer(
@@ -220,6 +315,16 @@ class Project:
             # No style, but a specific group was requested — make it the active
             # scalar group so the right variable renders with QGIS defaults.
             self._activate_mesh_group(qgis_layer, layer.dataset_group)
+
+        if isinstance(layer, DatacubeLayer):
+            style = layer.style
+            # Explicit limits win, and categories have no stretch to fix.
+            if style is None or (
+                style.vmin is None
+                and style.vmax is None
+                and not isinstance(style, RasterStylePaletted)
+            ):
+                _datacube.stretch_across_cube(qgis_layer)
 
         if isinstance(qgis_layer, QgsVectorLayer) and getattr(layer, "labels", None) is not None:
             layer.labels.apply(layer)
@@ -267,11 +372,23 @@ class Project:
         `visible`, `crs`, `overwrite_existing`, `style`, ...) are forwarded
         to the layer constructor. A :class:`RasterLayer` is built automatically
         when a raster-specific keyword is given (a :class:`RasterStyle` style,
-        `band_idx`, or `statistics_kwargs`); otherwise a plain :class:`Layer`.
+        `band_idx`, `statistics_kwargs` or `provider`), and a
+        :class:`DatacubeLayer` for `provider="datacube_viewer"` or a datacube
+        keyword (`dataset`, `indices`, `ref`); otherwise a plain :class:`Layer`.
         """
         if isinstance(layer, str):
             layer = layer_from_path(layer, **kwargs)
         self._add_layer(layer)
+
+    def add_datacube_layer(self, file: str, **kwargs):
+        """Add a Zarr, Icechunk or NetCDF datacube through the Datacube Viewer provider.
+
+        Shorthand for `add_layer(DatacubeLayer(file, **kwargs))`; see
+        :class:`DatacubeLayer` for the keywords (`variable`, `dataset`,
+        `indices`, `ref`, and all of :class:`RasterLayer`'s). Every variable
+        becomes its own layer unless `variable` picks some.
+        """
+        self._add_layer(DatacubeLayer(file, **kwargs))
 
     def remove_layer(self, layer: Layer | str):
         """Remove a layer from the project by path."""

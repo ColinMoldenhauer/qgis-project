@@ -159,6 +159,24 @@ proj.add_layer("terrain.2dm")   # mesh-only extensions auto-detected
 `dataset_group` picks the group by name or index (on the `MeshLayer`, or on the
 style to override); `list_mesh_dataset_groups(file)` lists them.
 
+### Datacubes
+
+Zarr, Icechunk and NetCDF datacubes load through the raster provider of the
+[Datacube Viewer](https://github.com/TUW-GEO/qgis-datacube-viewer) plugin,
+which understands named dimensions, multiscale pyramids and Icechunk versions.
+Each variable becomes its own layer, stretched across the whole cube:
+
+```python
+proj.add_datacube_layer("cube.zarr")                     # every variable
+proj.add_datacube_layer("cube.zarr", variable="temperature", indices={"time": 3})
+proj.add_datacube_layer("s3://bucket/repo", ref="tag:v1", dataset="utm32")
+```
+
+The Python that runs QGIS needs the `qgis-datacube-viewer` package to make the
+layers, and the QGIS that opens the project needs the plugin to show them.
+`list_datacube_variables(file)` lists the variables. Other raster providers are
+chosen with `RasterLayer(source, provider="<key>")`.
+
 ### Vector styles
 
 | Class | Effect |

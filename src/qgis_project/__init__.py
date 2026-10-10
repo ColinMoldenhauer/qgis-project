@@ -159,8 +159,8 @@ class Project:
         return _resolve_backend()(*args, **kwargs)
 
 
-from .layer import Layer, MeshLayer, ProcessingOp, RasterLayer, WebLayer
-from .utils import list_mesh_dataset_groups, list_raster_variables
+from .layer import DatacubeLayer, Layer, MeshLayer, ProcessingOp, RasterLayer, WebLayer
+from .utils import list_datacube_variables, list_mesh_dataset_groups, list_raster_variables
 from .style import (
     Style,
     RasterStyle,

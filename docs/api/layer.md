@@ -4,6 +4,8 @@
 
 ::: qgis_project.RasterLayer
 
+::: qgis_project.DatacubeLayer
+
 ::: qgis_project.WebLayer
 
 ::: qgis_project.ProcessingOp

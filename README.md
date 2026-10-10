@@ -258,6 +258,42 @@ from qgis_project import list_mesh_dataset_groups
 list_mesh_dataset_groups("flood.nc")   # ['Bed Elevation', 'water depth', 'velocity']
 ```
 
+### Datacubes (Zarr, Icechunk, NetCDF)
+
+GDAL reads a datacube as flat bands. The [Datacube Viewer](https://github.com/TUW-GEO/qgis-datacube-viewer)
+QGIS plugin brings its own raster provider that understands named dimensions,
+multiscale pyramids, and Icechunk branches, tags and snapshots. `DatacubeLayer`
+loads data through it, one layer per variable, each stretched across the whole
+cube so that stepping through time in the plugin keeps the colours comparable:
+
+```python
+proj.add_datacube_layer("cube.zarr")                     # every variable
+proj.add_datacube_layer("cube.zarr", variable="temperature", indices={"time": 3})
+proj.add_datacube_layer("s3://bucket/repo", ref="tag:v1", dataset="utm32")
+proj.add_layer("cube.nc", provider="datacube_viewer")    # the same, via add_layer
+```
+
+`variable`, `dataset` (a group in the store), `indices` (the slice shown for
+each non-spatial dimension) and `ref` (an Icechunk version) are fields of
+`DatacubeLayer`; every `RasterLayer` option, styles included, works as well.
+`list_datacube_variables("cube.zarr")` lists the variables.
+
+Two installs are needed. Making the layers needs the `qgis-datacube-viewer`
+package in the Python that runs QGIS; in local mode that is the standalone
+QGIS's Python, not yours. Until the package is on PyPI, install it from GitHub:
+
+```bash
+pip install "qgis-datacube-viewer[all] @ git+https://github.com/TUW-GEO/qgis-datacube-viewer"
+```
+
+Displaying the saved project needs the Datacube Viewer plugin, installed and
+enabled in QGIS.
+
+Any other raster provider can be chosen the same way with
+`RasterLayer(source, provider="<key>")`, where `source` is whatever that
+provider expects. A provider that is not built into QGIS is registered from the
+`qgis_project.providers` entry point of the package that offers it.
+
 ### Vector styling
 
 | Class | Effect |

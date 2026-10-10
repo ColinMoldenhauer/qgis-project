@@ -22,6 +22,14 @@ NETCDF_EXTENSIONS = (".nc", ".nc4", ".cdf", ".netcdf")
 # an explicit MeshLayer rather than extension sniffing.
 MESH_EXTENSIONS = (".2dm", ".slf", ".sww", ".mesh")
 
+# Key of the raster provider registered by the Datacube Viewer QGIS plugin
+# (pip package `qgis-datacube-viewer`), which reads Zarr, Icechunk and NetCDF
+# datacubes. See `DatacubeLayer`.
+DATACUBE_PROVIDER = "datacube_viewer"
+
+# `add_layer` keywords that only make sense for a `DatacubeLayer`.
+DATACUBE_KEYWORDS = ("dataset", "indices", "ref")
+
 
 def is_netcdf(file: str) -> bool:
     """Return True if *file* has a NetCDF extension (see `NETCDF_EXTENSIONS`)."""
@@ -211,6 +219,13 @@ class RasterLayer(Layer):
     # estimate, or extent=... to restrict the computed region.
     statistics_kwargs: dict = field(default_factory=dict)
 
+    # QGIS raster data provider to read the file with, by key: "gdal", or one a
+    # plugin registers, e.g. "datacube_viewer". `file` is then handed to that
+    # provider as its data source, which may be a URL or a provider-specific
+    # URI rather than a path. None (default): detect the format, trying a vector
+    # layer first and then GDAL.
+    provider: str | None = None
+
     @assert_link
     def get_layer_min(self, band: int | None = None):
         from qgis.core import QgsRasterBandStats
@@ -239,6 +254,49 @@ class RasterLayer(Layer):
 
     def set_band_idx(self, band_idx: int | list[int]):
         self.band_idx = band_idx
+
+
+@dataclass
+class DatacubeLayer(RasterLayer):
+    """A Zarr, Icechunk or NetCDF datacube, read through the raster provider of
+    the Datacube Viewer QGIS plugin.
+
+    The provider understands what GDAL does not: named dimensions in any
+    order, multiscale pyramids (it switches level as you zoom), and Icechunk
+    branches, tags and snapshots. Like a NetCDF file, a datacube is loaded as
+    one single-band layer per variable, each stretched across the whole cube
+    rather than one slice, so that stepping through time in the plugin's panel
+    keeps the colours comparable.
+
+    The package `qgis-datacube-viewer` must be installed in the Python that
+    runs QGIS (here, or the standalone QGIS in subprocess mode), and the saved
+    project only displays in a QGIS that has the Datacube Viewer plugin
+    installed and enabled.
+
+    Parameters
+    ----------
+    file : str
+        Store location: a Zarr or Icechunk directory, a NetCDF file, or a URL
+        (`s3://`, `gs://`, `az://`, `https://`).
+    variable : str or list of str or None
+        Variable(s) to load, one layer each. `None` (default) loads every
+        variable in the dataset.
+    dataset : str
+        Group inside the store that holds the variables, e.g. `"utm32"`.
+        Empty (default) takes the first georeferenced dataset.
+    indices : dict of str to int
+        Slice shown for each non-spatial dimension, e.g. `{"time": 3}`.
+        Dimensions not listed show index 0.
+    ref : str or None
+        Icechunk version: `"branch:main"`, `"tag:v1"`, `"snapshot:<id>"`, or a
+        bare branch name. `None` follows branch `main`. Ignored by plain Zarr
+        and NetCDF.
+    """
+
+    dataset: str = ""
+    indices: dict[str, int] = field(default_factory=dict)
+    ref: str | None = None
+    provider: str | None = DATACUBE_PROVIDER
 
 
 @dataclass
@@ -280,16 +338,22 @@ class MeshLayer(Layer):
 
 
 def layer_from_path(file: str, **kwargs) -> Layer:
-    """Build a :class:`Layer`, :class:`RasterLayer`, or :class:`MeshLayer` from a
-    file path and kwargs.
+    """Build a :class:`Layer`, :class:`RasterLayer`, :class:`MeshLayer` or
+    :class:`DatacubeLayer` from a file path and kwargs.
 
-    Chooses :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
+    Chooses :class:`DatacubeLayer` for `provider="datacube_viewer"` or a
+    datacube-specific keyword (`dataset`, `indices`, `ref`);
+    :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
     style or `dataset_group`) or an unambiguous mesh extension; :class:`RasterLayer`
     for a raster-specific keyword (a :class:`RasterStyle` style, `band_idx`,
-    `statistics_kwargs`, `variable`) or a NetCDF file; otherwise a plain
+    `statistics_kwargs`, `variable`, `provider`) or a NetCDF file; otherwise a plain
     :class:`Layer`. This lets callers pass styling directly to `add_layer`
     without wrapping the path themselves.
     """
+    if kwargs.get("provider") == DATACUBE_PROVIDER or any(
+        key in kwargs for key in DATACUBE_KEYWORDS
+    ):
+        return DatacubeLayer(file, **kwargs)
     is_mesh = (
         isinstance(kwargs.get("style"), MeshStyle)
         or "dataset_group" in kwargs
@@ -300,6 +364,7 @@ def layer_from_path(file: str, **kwargs) -> Layer:
         or "band_idx" in kwargs
         or "statistics_kwargs" in kwargs
         or "variable" in kwargs
+        or "provider" in kwargs
         or is_netcdf(file)
     )
     if is_mesh:

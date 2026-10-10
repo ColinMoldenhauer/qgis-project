@@ -173,6 +173,53 @@ def sample_nc(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
+def datacube_nc(tmp_path_factory):
+    """A small NetCDF datacube that the Datacube Viewer provider can read.
+
+    ``elevation`` (y, x) and ``temperature`` (time, y, x) on a projected grid,
+    with the CRS (EPSG:32633) in a ``spatial_ref`` grid mapping. Each time step
+    of ``temperature`` is 100 warmer than the one before, so a stretch across
+    the whole cube is visibly wider than one across the first step. Requires
+    ``netCDF4`` (not QGIS: the store is also read without it).
+    """
+    try:
+        import numpy as np
+        import netCDF4
+    except ImportError:
+        pytest.skip("netCDF4 or numpy not available")
+
+    nx, ny, nt = 8, 6, 3
+    path = tmp_path_factory.mktemp("data") / "cube.nc"
+    with netCDF4.Dataset(str(path), "w") as ds:
+        ds.createDimension("time", nt)
+        ds.createDimension("y", ny)
+        ds.createDimension("x", nx)
+
+        x = ds.createVariable("x", "f8", ("x",))
+        x.units = "m"
+        x[:] = 500_000.0 + 10.0 * (np.arange(nx) + 0.5)
+        y = ds.createVariable("y", "f8", ("y",))
+        y.units = "m"
+        y[:] = 5_000_000.0 - 10.0 * (np.arange(ny) + 0.5)
+        t = ds.createVariable("time", "f8", ("time",))
+        t.units = "days since 2024-01-01"
+        t.calendar = "standard"
+        t[:] = [0.0, 31.0, 59.0]
+
+        crs = ds.createVariable("spatial_ref", "i4", ())
+        crs.spatial_ref = "EPSG:32633"
+
+        base = np.arange(ny * nx, dtype="f4").reshape(ny, nx)
+        elevation = ds.createVariable("elevation", "f4", ("y", "x"))
+        elevation.grid_mapping = "spatial_ref"
+        elevation[:] = base
+        temperature = ds.createVariable("temperature", "f4", ("time", "y", "x"))
+        temperature.grid_mapping = "spatial_ref"
+        temperature[:] = base + 100.0 * np.arange(nt, dtype="f4")[:, None, None]
+    return path
+
+
+@pytest.fixture(scope="session")
 def sample_2dm(tmp_path_factory):
     """A minimal SMS 2DM mesh: 4 nodes, 2 triangles, with node elevations.
 

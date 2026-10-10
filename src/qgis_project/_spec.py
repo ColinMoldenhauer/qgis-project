@@ -54,7 +54,7 @@ def _layer_to_dict(layer) -> dict:
 
 
 def _layer_from_dict(d: dict):
-    from .layer import Layer, MeshLayer, RasterLayer, WebLayer
+    from .layer import DatacubeLayer, Layer, MeshLayer, RasterLayer, WebLayer
     from .style import (
         MeshStyle,
         MeshStyleScalar,
@@ -101,6 +101,8 @@ def _layer_from_dict(d: dict):
         return Layer(**d)
     if layer_type == "RasterLayer":
         return RasterLayer(**d)
+    if layer_type == "DatacubeLayer":
+        return DatacubeLayer(**d)
     if layer_type == "MeshLayer":
         return MeshLayer(**d)
     if layer_type == "WebLayer":
