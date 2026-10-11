@@ -202,19 +202,19 @@ class Project:
         return qgis_layer
 
     @staticmethod
-    def _activate_mesh_group(qgis_layer, dataset_group):
+    def _activate_mesh_group(qgis_layer, variable):
         """Set a mesh layer's active scalar dataset group by name or index."""
         from qgis.core import QgsMeshDatasetIndex
 
         indexes = list(qgis_layer.datasetGroupsIndexes())
-        group = dataset_group
-        if isinstance(dataset_group, str):
+        group = variable
+        if isinstance(variable, str):
             group = next(
                 (
                     i
                     for i in indexes
                     if qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(i, 0)).name()
-                    == dataset_group
+                    == variable
                 ),
                 None,
             )
@@ -224,12 +224,47 @@ class Project:
                     for i in indexes
                 )
                 logger.warning(
-                    f"Dataset group {dataset_group!r} not found; available: {names}"
+                    f"Dataset group {variable!r} not found; available: {names}"
                 )
                 return
         settings = qgis_layer.rendererSettings()
         settings.setActiveScalarDatasetGroup(group)
         qgis_layer.setRendererSettings(settings)
+
+    @staticmethod
+    def _apply_mesh_slice(qgis_layer, layer: MeshLayer):
+        """Show one dataset (time step) of the active scalar and vector groups.
+
+        The style's `slice` wins over the layer's. Runs after styling, as
+        that is what activates the dataset groups.
+        """
+        from qgis.core import QgsMeshDatasetIndex
+
+        style = layer.style
+        step = style.slice if style is not None and style.slice is not None else None
+        if step is None:
+            step = layer.slice
+        if step is None:
+            return
+
+        settings = qgis_layer.rendererSettings()
+        targets = (
+            (settings.activeScalarDatasetGroup(), qgis_layer.setStaticScalarDatasetIndex),
+            (settings.activeVectorDatasetGroup(), qgis_layer.setStaticVectorDatasetIndex),
+        )
+        # The static index only counts while the layer is not time-animated.
+        qgis_layer.temporalProperties().setIsActive(False)
+        for group, set_static in targets:
+            if group < 0:
+                continue
+            count = qgis_layer.datasetCount(QgsMeshDatasetIndex(group, 0))
+            if not 0 <= step < count:
+                logger.warning(
+                    f"Time step {step} out of range for dataset group {group} of "
+                    f"'{layer.get_layer_name()}' ({count} datasets); keeping the default."
+                )
+                continue
+            set_static(QgsMeshDatasetIndex(group, step))
 
     def _add_layer(self, layer: Layer | WebLayer):
         """Add a layer to the project, expanding multi-variable NetCDF files and datacubes."""
@@ -311,10 +346,13 @@ class Project:
 
         if getattr(layer, "style", None) is not None:
             layer.style.set_style(layer)
-        elif isinstance(layer, MeshLayer) and layer.dataset_group is not None:
+        elif isinstance(layer, MeshLayer) and layer.variable is not None:
             # No style, but a specific group was requested — make it the active
             # scalar group so the right variable renders with QGIS defaults.
-            self._activate_mesh_group(qgis_layer, layer.dataset_group)
+            self._activate_mesh_group(qgis_layer, layer.variable)
+
+        if isinstance(layer, MeshLayer):
+            self._apply_mesh_slice(qgis_layer, layer)
 
         if isinstance(layer, DatacubeLayer):
             style = layer.style
@@ -372,7 +410,7 @@ class Project:
         `visible`, `crs`, `overwrite_existing`, `style`, ...) are forwarded
         to the layer constructor. A :class:`RasterLayer` is built automatically
         when a raster-specific keyword is given (a :class:`RasterStyle` style,
-        `band_idx`, `statistics_kwargs` or `provider`), and a
+        `slice`, `statistics_kwargs` or `provider`), and a
         :class:`DatacubeLayer` for `provider="datacube_viewer"` or a datacube
         keyword (`dataset`, `indices`, `ref`); otherwise a plain :class:`Layer`.
         """

@@ -129,7 +129,7 @@ proj.add_layer(layer)
 
 You can also pass a path and styling straight to `add_layer` without
 constructing a `RasterLayer` yourself — a `RasterLayer` is built automatically
-when a raster-specific keyword (a `RasterStyle`, `band_idx`, or
+when a raster-specific keyword (a `RasterStyle`, `slice`, or
 `statistics_kwargs`) is given:
 
 ```python
@@ -139,7 +139,7 @@ proj.add_layer("dem.tif", name="Elevation", group="terrain",
 
 If `vmin`/`vmax` are omitted they are computed from the layer data.
 
-`RasterStyleMultiBandColor` requires `band_idx` to be a list of three band
+`RasterStyleMultiBandColor` requires `slice` to be a list of three band
 numbers `[R, G, B]`:
 
 ```python
@@ -147,7 +147,7 @@ from qgis_project import RasterStyleMultiBandColor
 
 layer = RasterLayer(
     file="rgb.tif",
-    band_idx=[1, 2, 3],
+    slice=[1, 2, 3],
     style=RasterStyleMultiBandColor(),
 )
 proj.add_layer(layer)
@@ -197,7 +197,7 @@ proj.add_layer("climate.nc", variable="/forecast/humidity")
 ```
 
 A variable with a time (or Z) dimension loads as a multi-band raster — one band
-per step — so `band_idx` selects the step, and any `RasterStyle` applies as
+per step — so `slice` selects the step, and any `RasterStyle` applies as
 usual. NetCDF often lacks an embedded CRS; set it with `crs=...` if needed.
 
 List the variables in a file without loading it (requires GDAL in the current
@@ -229,13 +229,13 @@ from qgis_project import MeshLayer, MeshStyleScalar, MeshStyleVector
 # Colour a scalar dataset group with a ramp (min/max auto-detected if omitted)
 proj.add_layer(MeshLayer(
     "flood.nc",
-    style=MeshStyleScalar(dataset_group="water depth", colormap="Blues", vmin=0, vmax=5),
+    style=MeshStyleScalar(variable="water depth", colormap="Blues", vmin=0, vmax=5),
 ))
 
 # Draw a vector dataset group as arrows
 proj.add_layer(MeshLayer(
     "currents.nc",
-    style=MeshStyleVector(dataset_group="velocity", color="white", line_width=0.4),
+    style=MeshStyleVector(variable="velocity", color="white", line_width=0.4),
 ))
 
 # 2DM and other mesh-only extensions are detected automatically
@@ -247,15 +247,17 @@ proj.add_layer("terrain.2dm")
 | `MeshStyleScalar` | Colour a scalar dataset group with a continuous ramp |
 | `MeshStyleVector` | Render a vector dataset group as arrows |
 
-`dataset_group` selects the group by name or index; set it on the `MeshLayer`
+`variable` selects the group by name or index; set it on the `MeshLayer`
 (applies with QGIS's default rendering) or on the style (overrides, per style).
-If omitted, the first scalar/vector group is used. List a file's groups without
+If omitted, the first scalar/vector group is used. `slice` picks the dataset
+(time step) within the group by index, with the same layer/style placement; out
+of range, it logs a warning and keeps the first. List a file's groups without
 loading it (requires QGIS in the current environment):
 
 ```python
-from qgis_project import list_mesh_dataset_groups
+from qgis_project import list_mesh_variables
 
-list_mesh_dataset_groups("flood.nc")   # ['Bed Elevation', 'water depth', 'velocity']
+list_mesh_variables("flood.nc")   # ['Bed Elevation', 'water depth', 'velocity']
 ```
 
 ### Datacubes (Zarr, Icechunk, NetCDF)

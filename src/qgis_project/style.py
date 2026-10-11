@@ -63,7 +63,7 @@ class RasterStyleBW(RasterStyle):
 
         # https://gis.stackexchange.com/questions/377569/setting-max-min-values-of-singleband-grey-layer-using-pyqgis
         qgis_layer = layer.qgis_layer
-        band = getattr(layer, "band_idx", 1)
+        band = getattr(layer, "slice", 1)
         renderer = QgsSingleBandGrayRenderer(qgis_layer.dataProvider(), band)
         render_type = renderer.dataType(band)
         enhancement = QgsContrastEnhancement(render_type)
@@ -102,7 +102,7 @@ class RasterStyleSinglePseudocolor(RasterStyle):
         )
 
         qgis_layer = layer.qgis_layer
-        band = getattr(layer, "band_idx", 1)
+        band = getattr(layer, "slice", 1)
         provider = qgis_layer.dataProvider()
 
         vmin = self.vmin if self.vmin is not None else layer.get_layer_min()
@@ -131,17 +131,17 @@ class RasterStyleMultiBandColor(RasterStyle):
 
     Maps three raster bands to the red, green, and blue channels, each with
     an independent contrast stretch — e.g. true-color or false-color
-    composites. Requires `layer.band_idx` to be a list of three band
+    composites. Requires `layer.slice` to be a list of three band
     numbers, e.g. `[1, 2, 3]` for (R, G, B).
     """
 
     def set_style(self, layer: "Layer"):
         from qgis.core import QgsContrastEnhancement, QgsMultiBandColorRenderer
 
-        band_idx = layer.band_idx
-        if not isinstance(band_idx, (list, tuple)) or len(band_idx) != 3:
+        bands = layer.slice
+        if not isinstance(bands, (list, tuple)) or len(bands) != 3:
             raise ValueError(
-                "RasterStyleMultiBandColor requires layer.band_idx to be a "
+                "RasterStyleMultiBandColor requires layer.slice to be a "
                 "list of three band numbers, e.g. [1, 2, 3] for (R, G, B)."
             )
 
@@ -151,13 +151,13 @@ class RasterStyleMultiBandColor(RasterStyle):
         vmins = self.vmin if isinstance(self.vmin, (list, tuple)) else [self.vmin] * 3
         vmaxs = self.vmax if isinstance(self.vmax, (list, tuple)) else [self.vmax] * 3
 
-        renderer = QgsMultiBandColorRenderer(provider, *band_idx)
+        renderer = QgsMultiBandColorRenderer(provider, *bands)
         setters = [
             renderer.setRedContrastEnhancement,
             renderer.setGreenContrastEnhancement,
             renderer.setBlueContrastEnhancement,
         ]
-        for band, vmin, vmax, set_enhancement in zip(band_idx, vmins, vmaxs, setters):
+        for band, vmin, vmax, set_enhancement in zip(bands, vmins, vmaxs, setters):
             vmin = vmin if vmin is not None else layer.get_layer_min(band)
             vmax = vmax if vmax is not None else layer.get_layer_max(band)
             enhancement = QgsContrastEnhancement(provider.dataType(band))
@@ -209,7 +209,7 @@ class RasterStylePaletted(RasterStyle):
         from qgis.PyQt.QtGui import QColor
 
         qgis_layer = layer.qgis_layer
-        band = getattr(layer, "band_idx", 1)
+        band = getattr(layer, "slice", 1)
         provider = qgis_layer.dataProvider()
 
         # Keys may arrive as ints (in-process) or as strings (after a JSON
@@ -248,12 +248,17 @@ class MeshStyle(Style):
 
     Parameters
     ----------
-    dataset_group : str or int or None
+    variable : str or int or None
         Dataset group to render, by name or index. If `None`, the layer's own
-        `dataset_group` is used; failing that, the first matching group.
+        `variable` is used; failing that, the first matching group.
+    slice : int or None
+        Index of the dataset within the group (the time step) to render. If
+        `None`, the layer's own `slice` is used; failing that, the first
+        dataset.
     """
 
-    dataset_group: str | int | None = None
+    variable: str | int | None = None
+    slice: int | None = None
 
 
 @dataclass
@@ -279,8 +284,8 @@ class MeshStyleScalar(MeshStyle):
         from qgis.core import QgsColorRampShader, QgsMeshDatasetIndex
 
         qgis_layer = layer.qgis_layer
-        group = _resolve_mesh_dataset_group(
-            qgis_layer, self.dataset_group, getattr(layer, "dataset_group", None)
+        group = _resolve_mesh_variable(
+            qgis_layer, self.variable, getattr(layer, "variable", None)
         )
         meta = qgis_layer.datasetGroupMetadata(QgsMeshDatasetIndex(group, 0))
 
@@ -323,10 +328,10 @@ class MeshStyleVector(MeshStyle):
         from qgis.PyQt.QtGui import QColor
 
         qgis_layer = layer.qgis_layer
-        group = _resolve_mesh_dataset_group(
+        group = _resolve_mesh_variable(
             qgis_layer,
-            self.dataset_group,
-            getattr(layer, "dataset_group", None),
+            self.variable,
+            getattr(layer, "variable", None),
             want_vector=True,
         )
 
@@ -342,10 +347,10 @@ class MeshStyleVector(MeshStyle):
         super().set_style(layer)
 
 
-def _resolve_mesh_dataset_group(qgis_layer, style_group, layer_group, want_vector=False):
+def _resolve_mesh_variable(qgis_layer, style_group, layer_group, want_vector=False):
     """Resolve a dataset-group selector to a group index on a mesh layer.
 
-    Precedence: the style's `dataset_group`, then the layer's `dataset_group`.
+    Precedence: the style's `variable`, then the layer's `variable`.
     A string is matched against group names; an int is used as-is; `None` picks
     the first group of the requested kind (vector if *want_vector*, else scalar),
     falling back to the first group of any kind.

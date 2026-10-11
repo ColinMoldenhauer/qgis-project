@@ -99,13 +99,13 @@ def test_mesh_layer_scalar_style_round_trip():
     layers = [
         MeshLayer(
             file="model.nc",
-            dataset_group="water depth",
+            variable="water depth",
             style=MeshStyleScalar(colormap="Spectral", vmin=0.0, vmax=5.0),
         )
     ]
     result, _, _ = from_dict(to_dict(layers, "out.qgz"))
     assert isinstance(result[0], MeshLayer)
-    assert result[0].dataset_group == "water depth"
+    assert result[0].variable == "water depth"
     assert isinstance(result[0].style, MeshStyleScalar)
     assert result[0].style.colormap == "Spectral"
     assert result[0].style.vmax == 5.0
@@ -120,10 +120,10 @@ def test_mesh_layer_vector_style_round_trip():
 
 
 def test_mesh_layer_no_style_round_trip():
-    layers = [MeshLayer(file="terrain.2dm", dataset_group=0)]
+    layers = [MeshLayer(file="terrain.2dm", variable=0)]
     result, _, _ = from_dict(to_dict(layers, "out.qgz"))
     assert isinstance(result[0], MeshLayer)
-    assert result[0].dataset_group == 0
+    assert result[0].variable == 0
     assert result[0].style is None
 
 

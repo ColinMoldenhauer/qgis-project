@@ -230,21 +230,21 @@ def test_add_mesh_layer_is_valid(qgis_app, sample_2dm):
     project.exit()
 
 
-def test_mesh_layer_has_dataset_groups(qgis_app, sample_2dm):
+def test_mesh_layer_has_variables(qgis_app, sample_2dm):
     _skip_without_mdal(sample_2dm)
     project = Project()
     layer = MeshLayer(file=str(sample_2dm))
     project.add_layer(layer)
     # MDAL derives a scalar group (e.g. "Bed Elevation") from the 2DM node Zs.
-    groups = layer.get_dataset_groups()
+    groups = layer.get_variables()
     assert len(groups) >= 1
     project.exit()
 
 
-def test_list_mesh_dataset_groups_helper(qgis_app, sample_2dm):
-    from qgis_project import list_mesh_dataset_groups
+def test_list_mesh_variables_helper(qgis_app, sample_2dm):
+    from qgis_project import list_mesh_variables
     _skip_without_mdal(sample_2dm)
-    groups = list_mesh_dataset_groups(str(sample_2dm))
+    groups = list_mesh_variables(str(sample_2dm))
     assert len(groups) >= 1
 
 
@@ -276,22 +276,45 @@ def test_mesh_scalar_style_explicit_limits(qgis_app, sample_2dm):
     project.exit()
 
 
-def test_mesh_dataset_group_by_name_activates(qgis_app, sample_2dm):
+def test_mesh_variable_by_name_activates(qgis_app, sample_2dm):
     _skip_without_mdal(sample_2dm)
     project = Project()
     # Discover the real group name, then request it explicitly with no style.
     probe = MeshLayer(file=str(sample_2dm))
     project.add_layer(probe)
-    group_name = probe.get_dataset_groups()[0]
+    group_name = probe.get_variables()[0]
     project.exit()
 
     from qgis.core import QgsProject
     QgsProject.instance().clear()
     project = Project()
-    layer = MeshLayer(file=str(sample_2dm), dataset_group=group_name)
+    layer = MeshLayer(file=str(sample_2dm), variable=group_name)
     project.add_layer(layer)
     settings = layer.qgis_layer.rendererSettings()
     assert settings.activeScalarDatasetGroup() >= 0
+    project.exit()
+
+
+def test_mesh_slice_sets_static_dataset_index(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm), slice=0, style=MeshStyleScalar())
+    project.add_layer(layer)
+    settings = layer.qgis_layer.rendererSettings()
+    group = settings.activeScalarDatasetGroup()
+    index = layer.qgis_layer.staticScalarDatasetIndex()
+    assert index.group() == group
+    assert index.dataset() == 0
+    project.exit()
+
+
+def test_mesh_slice_out_of_range_keeps_default(qgis_app, sample_2dm):
+    _skip_without_mdal(sample_2dm)
+    project = Project()
+    layer = MeshLayer(file=str(sample_2dm), slice=9999, style=MeshStyleScalar())
+    project.add_layer(layer)
+    assert layer.qgis_layer.isValid()
+    assert layer.qgis_layer.staticScalarDatasetIndex().dataset() == 0
     project.exit()
 
 

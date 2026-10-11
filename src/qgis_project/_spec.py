@@ -23,7 +23,7 @@ Both formats represent the same dict structure:
         {
           "type": "RasterLayer",
           ...,
-          "band_idx": 1,
+          "slice": 1,
           "style": {
             "type": "RasterStyleBW",
             "vmin": 0.0,

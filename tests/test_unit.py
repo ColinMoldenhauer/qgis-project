@@ -81,13 +81,13 @@ def test_layer_pickle_roundtrip(tmp_path):
 
 def test_raster_layer_defaults():
     layer = RasterLayer(file="dem.tif")
-    assert layer.band_idx == 1
+    assert layer.slice == 1
     assert isinstance(layer.style, RasterStyle)
 
-def test_raster_layer_set_band_idx():
+def test_raster_layer_set_slice():
     layer = RasterLayer(file="dem.tif")
-    layer.set_band_idx(2)
-    assert layer.band_idx == 2
+    layer.set_slice(2)
+    assert layer.slice == 2
 
 def test_raster_layer_link_error_on_min():
     with pytest.raises(QgisLayerLinkError):
@@ -116,10 +116,10 @@ def test_layer_from_path_raster_style_builds_raster_layer():
     assert type(layer) is RasterLayer
     assert isinstance(layer.style, RasterStyleBW)
 
-def test_layer_from_path_band_idx_builds_raster_layer():
-    layer = layer_from_path("rgb.tif", band_idx=[1, 2, 3])
+def test_layer_from_path_slice_builds_raster_layer():
+    layer = layer_from_path("rgb.tif", slice=[1, 2, 3])
     assert type(layer) is RasterLayer
-    assert layer.band_idx == [1, 2, 3]
+    assert layer.slice == [1, 2, 3]
 
 def test_layer_from_path_forwards_common_kwargs():
     layer = layer_from_path("dem.tif", name="Elevation", group="terrain", visible=False)
@@ -215,13 +215,26 @@ def test_is_mesh_file_by_extension():
 
 def test_mesh_layer_defaults():
     layer = MeshLayer(file="terrain.2dm")
-    assert layer.dataset_group is None
+    assert layer.variable is None
     assert layer.style is None
 
 
-def test_mesh_layer_get_dataset_groups_requires_link():
+def test_mesh_slice_defaults_to_none():
+    assert MeshLayer(file="terrain.2dm").slice is None
+    assert MeshStyleScalar().slice is None
+    assert MeshStyleVector().slice is None
+
+
+def test_layer_from_path_slice_alone_builds_raster_layer():
+    # `slice` is shared with rasters, so it does not imply a mesh.
+    layer = layer_from_path("model.nc", slice=3)
+    assert type(layer) is RasterLayer
+    assert layer.slice == 3
+
+
+def test_mesh_layer_get_variables_requires_link():
     with pytest.raises(QgisLayerLinkError):
-        MeshLayer(file="terrain.2dm").get_dataset_groups()
+        MeshLayer(file="terrain.2dm").get_variables()
 
 
 def test_layer_from_path_mesh_extension_builds_mesh_layer():
@@ -229,10 +242,10 @@ def test_layer_from_path_mesh_extension_builds_mesh_layer():
     assert type(layer) is MeshLayer
 
 
-def test_layer_from_path_dataset_group_builds_mesh_layer():
-    layer = layer_from_path("model.nc", dataset_group="water depth")
+def test_layer_from_path_mesh_extension_keeps_variable():
+    layer = layer_from_path("model.2dm", variable="water depth")
     assert type(layer) is MeshLayer
-    assert layer.dataset_group == "water depth"
+    assert layer.variable == "water depth"
 
 
 def test_layer_from_path_mesh_style_builds_mesh_layer():
@@ -251,7 +264,7 @@ def test_mesh_style_scalar_defaults():
     assert s.colormap == "viridis"
     assert s.vmin is None
     assert s.vmax is None
-    assert s.dataset_group is None
+    assert s.variable is None
 
 
 def test_mesh_style_vector_defaults():

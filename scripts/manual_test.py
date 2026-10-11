@@ -721,11 +721,11 @@ def t19_multiband_color(dem, slope, vector, out_dir, do_open=False) -> Path:
 
     proj = Project()
     proj.add_layer(RasterLayer(
-        str(rgb), name="RGB (explicit limits)", band_idx=[1, 2, 3],
+        str(rgb), name="RGB (explicit limits)", slice=[1, 2, 3],
         style=RasterStyleMultiBandColor(vmin=0, vmax=3000),
     ))
     proj.add_layer(RasterLayer(
-        str(rgb), name="RGB (auto limits)", band_idx=[3, 2, 1],
+        str(rgb), name="RGB (auto limits)", slice=[3, 2, 1],
         style=RasterStyleMultiBandColor(),
     ))
     out = out_dir / "19_multiband_color.qgz"

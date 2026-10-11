@@ -200,7 +200,7 @@ class Layer(_LayerMixin):
 class RasterLayer(Layer):
     # int for single-band styles (RasterStyleBW, RasterStyleSinglePseudocolor);
     # list of three band numbers [R, G, B] for RasterStyleMultiBandColor.
-    band_idx: int | list[int] = 1
+    slice: int | list[int] = 1
 
     # NetCDF/HDF variable (subdataset) selection. Only meaningful for container
     # formats like NetCDF, where one file holds several named variables:
@@ -209,7 +209,7 @@ class RasterLayer(Layer):
     #     a NetCDF-4 group): add just that variable.
     #   - list[str]: add the named subset.
     # A variable carrying a time/Z dimension becomes a multi-band raster; use
-    # band_idx to pick the step. Ignored for single-dataset rasters (.tif, ...).
+    # slice to pick the step. Ignored for single-dataset rasters (.tif, ...).
     variable: str | list[str] | None = None
 
     style: RasterStyle = field(default_factory=RasterStyle)
@@ -230,9 +230,9 @@ class RasterLayer(Layer):
     def get_layer_min(self, band: int | None = None):
         from qgis.core import QgsRasterBandStats
 
-        band = band if band is not None else self.band_idx
+        band = band if band is not None else self.slice
         if not isinstance(band, int):
-            raise ValueError("band must be specified explicitly when band_idx is a list")
+            raise ValueError("band must be specified explicitly when slice is a list")
         return (
             self.qgis_layer.dataProvider()
             .bandStatistics(band, QgsRasterBandStats.Min, **self.statistics_kwargs)
@@ -243,17 +243,17 @@ class RasterLayer(Layer):
     def get_layer_max(self, band: int | None = None):
         from qgis.core import QgsRasterBandStats
 
-        band = band if band is not None else self.band_idx
+        band = band if band is not None else self.slice
         if not isinstance(band, int):
-            raise ValueError("band must be specified explicitly when band_idx is a list")
+            raise ValueError("band must be specified explicitly when slice is a list")
         return (
             self.qgis_layer.dataProvider()
             .bandStatistics(band, QgsRasterBandStats.Max, **self.statistics_kwargs)
             .maximumValue
         )
 
-    def set_band_idx(self, band_idx: int | list[int]):
-        self.band_idx = band_idx
+    def set_slice(self, value: int | list[int]):
+        self.slice = value
 
 
 @dataclass
@@ -307,25 +307,31 @@ class MeshLayer(Layer):
     A mesh file holds one or more *dataset groups* (the equivalent of variables,
     e.g. `"Bed Elevation"`, `"water depth"`, `"velocity"`), each of which may be
     scalar or vector and may carry a time dimension for animation. Unlike a
-    raster, the whole file is a single layer; `dataset_group` selects which
+    raster, the whole file is a single layer; `variable` selects which
     group is rendered.
 
     Parameters
     ----------
-    dataset_group : str or int or None
+    variable : str or int or None
         The dataset group to render, by name or index. If `None`, the first
         scalar group (or the first group) is used. A `MeshStyle` may override
         this per style.
+    slice : int or None
+        Index of the dataset within the group to render, i.e. the time step
+        of a time-varying group. If `None`, QGIS's default (the first dataset)
+        is used. Applies to both the scalar and the vector group. A `MeshStyle`
+        may override this per style.
     style : MeshStyle or None
         Mesh styling (`MeshStyleScalar` for a colored scalar field,
         `MeshStyleVector` for arrows). If `None`, QGIS's default mesh
         rendering is used.
     """
 
-    dataset_group: str | int | None = None
+    variable: str | int | None = None
+    slice: int | None = None
     style: MeshStyle | None = None
 
-    def get_dataset_groups(self):
+    def get_variables(self):
         """Return the mesh's dataset group names (requires a linked QGIS layer)."""
         if not hasattr(self, "qgis_layer"):
             raise QgisLayerLinkError()
@@ -344,24 +350,27 @@ def layer_from_path(file: str, **kwargs) -> Layer:
     Chooses :class:`DatacubeLayer` for `provider="datacube_viewer"` or a
     datacube-specific keyword (`dataset`, `indices`, `ref`);
     :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
-    style or `dataset_group`) or an unambiguous mesh extension; :class:`RasterLayer`
-    for a raster-specific keyword (a :class:`RasterStyle` style, `band_idx`,
-    `statistics_kwargs`, `variable`, `provider`) or a NetCDF file; otherwise a plain
+    style) or an unambiguous mesh extension; :class:`RasterLayer`
+    for a raster-specific keyword (a :class:`RasterStyle` style, `slice`,
+    `statistics_kwargs`, `variable`, `provider`) or a NetCDF file. `variable` and
+    `slice` mean the same for meshes and rasters, so they don't pick the class:
+    pass a :class:`MeshStyle`, or build a :class:`MeshLayer` yourself, for a
+    NetCDF mesh; otherwise a plain
     :class:`Layer`. This lets callers pass styling directly to `add_layer`
     without wrapping the path themselves.
     """
     if kwargs.get("provider") == DATACUBE_PROVIDER or any(
         key in kwargs for key in DATACUBE_KEYWORDS
     ):
+        # TODO: is the DATACUBE_KEYWORDS approach safe?
         return DatacubeLayer(file, **kwargs)
     is_mesh = (
         isinstance(kwargs.get("style"), MeshStyle)
-        or "dataset_group" in kwargs
         or is_mesh_file(file)
     )
     is_raster = (
         isinstance(kwargs.get("style"), RasterStyle)
-        or "band_idx" in kwargs
+        or "slice" in kwargs
         or "statistics_kwargs" in kwargs
         or "variable" in kwargs
         or "provider" in kwargs

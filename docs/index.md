@@ -97,13 +97,13 @@ layer = RasterLayer("dem.tif", style=RasterStyleBW(vmin=0, vmax=3000))
 
 If `vmin`/`vmax` are omitted they are computed from the layer data.
 
-`RasterStyleMultiBandColor` requires `band_idx` to be a list of three band
+`RasterStyleMultiBandColor` requires `slice` to be a list of three band
 numbers `[R, G, B]`:
 
 ```python
 from qgis_project import RasterStyleMultiBandColor
 
-layer = RasterLayer("rgb.tif", band_idx=[1, 2, 3], style=RasterStyleMultiBandColor())
+layer = RasterLayer("rgb.tif", slice=[1, 2, 3], style=RasterStyleMultiBandColor())
 ```
 
 `RasterStylePaletted` assigns a fixed color per discrete band value — ideal for
@@ -134,7 +134,7 @@ proj.add_layer("climate.nc", variable=["temperature", "precipitation"])
 ```
 
 Variables in NetCDF-4 groups (`"/forecast/humidity"`) map onto the layer-tree
-group hierarchy, and a time dimension loads as raster bands (`band_idx` selects
+group hierarchy, and a time dimension loads as raster bands (`slice` selects
 the step). `list_raster_variables("climate.nc")` lists the variables.
 
 For unstructured/curvilinear grids, vector datasets, or temporal animation, use
@@ -145,9 +145,9 @@ when a rectilinear raster can't describe the grid:
 from qgis_project import MeshLayer, MeshStyleScalar, MeshStyleVector
 
 proj.add_layer(MeshLayer("flood.nc",
-    style=MeshStyleScalar(dataset_group="water depth", colormap="Blues")))
+    style=MeshStyleScalar(variable="water depth", colormap="Blues")))
 proj.add_layer(MeshLayer("currents.nc",
-    style=MeshStyleVector(dataset_group="velocity", color="white")))
+    style=MeshStyleVector(variable="velocity", color="white")))
 proj.add_layer("terrain.2dm")   # mesh-only extensions auto-detected
 ```
 
@@ -156,8 +156,9 @@ proj.add_layer("terrain.2dm")   # mesh-only extensions auto-detected
 | `MeshStyleScalar` | Colour a scalar dataset group with a continuous ramp |
 | `MeshStyleVector` | Render a vector dataset group as arrows |
 
-`dataset_group` picks the group by name or index (on the `MeshLayer`, or on the
-style to override); `list_mesh_dataset_groups(file)` lists them.
+`variable` picks the group by name or index (on the `MeshLayer`, or on the
+style to override); `list_mesh_variables(file)` lists them. `slice`
+picks the time step within the group by index, set the same way.
 
 ### Datacubes
 

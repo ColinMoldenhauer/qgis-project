@@ -160,7 +160,7 @@ class Project:
 
 
 from .layer import DatacubeLayer, Layer, MeshLayer, ProcessingOp, RasterLayer, WebLayer
-from .utils import list_datacube_variables, list_mesh_dataset_groups, list_raster_variables
+from .utils import list_datacube_variables, list_mesh_variables, list_raster_variables
 from .style import (
     Style,
     RasterStyle,

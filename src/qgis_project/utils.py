@@ -101,12 +101,12 @@ def ensure_provider(key: str) -> bool:
     return key in registry.providerList()
 
 
-def list_mesh_dataset_groups(file: str) -> list[str]:
+def list_mesh_variables(file: str) -> list[str]:
     """Return the dataset group names in a mesh file (via QGIS's MDAL provider).
 
     Dataset groups are a mesh's variables — e.g. `"Bed Elevation"`,
     `"water depth"`, `"velocity"` — and are what you pass as
-    `MeshLayer(..., dataset_group=...)`. Returns an empty list if the file
+    `MeshLayer(..., variable=...)`. Returns an empty list if the file
     cannot be read as a mesh. Requires QGIS to be importable in the current
     interpreter (an in-process/env backend), not subprocess mode.
     """
