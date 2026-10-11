@@ -251,14 +251,9 @@ class MeshStyle(Style):
     variable : str or int or None
         Dataset group to render, by name or index. If `None`, the layer's own
         `variable` is used; failing that, the first matching group.
-    slice : int or None
-        Index of the dataset within the group (the time step) to render. If
-        `None`, the layer's own `slice` is used; failing that, the first
-        dataset.
     """
 
     variable: str | int | None = None
-    slice: int | None = None
 
 
 @dataclass

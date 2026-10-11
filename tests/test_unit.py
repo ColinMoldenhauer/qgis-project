@@ -221,8 +221,6 @@ def test_mesh_layer_defaults():
 
 def test_mesh_slice_defaults_to_none():
     assert MeshLayer(file="terrain.2dm").slice is None
-    assert MeshStyleScalar().slice is None
-    assert MeshStyleVector().slice is None
 
 
 def test_layer_from_path_slice_alone_builds_raster_layer():

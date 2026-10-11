@@ -157,8 +157,8 @@ proj.add_layer("terrain.2dm")   # mesh-only extensions auto-detected
 | `MeshStyleVector` | Render a vector dataset group as arrows |
 
 `variable` picks the group by name or index (on the `MeshLayer`, or on the
-style to override); `list_mesh_variables(file)` lists them. `slice`
-picks the time step within the group by index, set the same way.
+style to override); `list_mesh_variables(file)` lists them. `slice` (on
+the `MeshLayer`) picks the time step within the group by index.
 
 ### Datacubes
 

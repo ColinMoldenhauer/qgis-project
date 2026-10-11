@@ -249,9 +249,9 @@ proj.add_layer("terrain.2dm")
 
 `variable` selects the group by name or index; set it on the `MeshLayer`
 (applies with QGIS's default rendering) or on the style (overrides, per style).
-If omitted, the first scalar/vector group is used. `slice` picks the dataset
-(time step) within the group by index, with the same layer/style placement; out
-of range, it logs a warning and keeps the first. List a file's groups without
+If omitted, the first scalar/vector group is used. `slice` on the `MeshLayer` picks
+the dataset (time step) within the group by index; out of range, it logs a
+warning and keeps the first. List a file's groups without
 loading it (requires QGIS in the current environment):
 
 ```python

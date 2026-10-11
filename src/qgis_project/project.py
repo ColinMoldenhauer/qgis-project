@@ -235,15 +235,11 @@ class Project:
     def _apply_mesh_slice(qgis_layer, layer: MeshLayer):
         """Show one dataset (time step) of the active scalar and vector groups.
 
-        The style's `slice` wins over the layer's. Runs after styling, as
-        that is what activates the dataset groups.
+        Runs after styling, as that is what activates the dataset groups.
         """
         from qgis.core import QgsMeshDatasetIndex
 
-        style = layer.style
-        step = style.slice if style is not None and style.slice is not None else None
-        if step is None:
-            step = layer.slice
+        step = layer.slice
         if step is None:
             return
 
