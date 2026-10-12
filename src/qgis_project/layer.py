@@ -226,6 +226,14 @@ class RasterLayer(Layer):
     # layer first and then GDAL.
     provider: str | None = None
 
+    # Value(s) to treat as nodata, on every band, in place of any nodata the
+    # file declares itself. Masked pixels are transparent and left out of
+    # statistics and stretches. A number or a list of numbers; an empty list
+    # masks nothing, switching off a declared value you do not trust. None
+    # (default): use the file's declared nodata. For a datacube the values are
+    # in stored units, before scale_factor/add_offset, like `_FillValue`.
+    nodata: float | list[float] | None = None
+
     @assert_link
     def get_layer_min(self, band: int | None = None):
         from qgis.core import QgsRasterBandStats
@@ -352,7 +360,7 @@ def layer_from_path(file: str, **kwargs) -> Layer:
     :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
     style) or an unambiguous mesh extension; :class:`RasterLayer`
     for a raster-specific keyword (a :class:`RasterStyle` style, `slice`,
-    `statistics_kwargs`, `variable`, `provider`) or a NetCDF file. `variable` and
+    `statistics_kwargs`, `variable`, `provider`, `nodata`) or a NetCDF file. `variable` and
     `slice` mean the same for meshes and rasters, so they don't pick the class:
     pass a :class:`MeshStyle`, or build a :class:`MeshLayer` yourself, for a
     NetCDF mesh; otherwise a plain
@@ -374,6 +382,7 @@ def layer_from_path(file: str, **kwargs) -> Layer:
         or "statistics_kwargs" in kwargs
         or "variable" in kwargs
         or "provider" in kwargs
+        or "nodata" in kwargs
         or is_netcdf(file)
     )
     if is_mesh:

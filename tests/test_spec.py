@@ -39,6 +39,20 @@ def test_raster_layer_with_style_round_trip():
     assert result[0].style.vmax == 3000.0
 
 
+def test_raster_layer_nodata_round_trip():
+    layers = [RasterLayer(file="dem.tif", nodata=[-9999, 0])]
+    result, _, _ = from_json(to_json(layers, "out.qgz"))
+    assert result[0].nodata == [-9999, 0]
+
+
+def test_layer_from_path_nodata_builds_raster_layer():
+    from qgis_project.layer import layer_from_path
+
+    layer = layer_from_path("dem.tif", nodata=-9999)
+    assert isinstance(layer, RasterLayer)
+    assert layer.nodata == -9999
+
+
 def test_raster_style_paletted_round_trip():
     style = RasterStylePaletted(
         colors={1: "#1b9e77", 2: "red"}, labels={1: "Forest"}

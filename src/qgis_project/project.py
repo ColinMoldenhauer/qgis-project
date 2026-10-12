@@ -202,6 +202,27 @@ class Project:
         return qgis_layer
 
     @staticmethod
+    def _apply_nodata(qgis_layer, nodata):
+        """Make *nodata* (one value, several, or none) the nodata of every band.
+
+        Replaces the file's own declared value rather than adding to it, as
+        `DatacubeLayer` does.
+        """
+        from qgis.core import QgsRasterRange
+
+        values = [nodata] if isinstance(nodata, (int, float)) else list(nodata)
+        ranges = [QgsRasterRange(float(v), float(v)) for v in values]
+        if not ranges:
+            # With no user ranges the GDAL provider takes its statistics straight
+            # from GDAL, which masks the declared nodata whatever we ask. A range
+            # that matches nothing keeps them on QGIS's own path.
+            ranges = [QgsRasterRange(1.0, 0.0)]
+        provider = qgis_layer.dataProvider()
+        for band in range(1, provider.bandCount() + 1):
+            provider.setUserNoDataValue(band, ranges)
+            provider.setUseSourceNoDataValue(band, False)
+
+    @staticmethod
     def _activate_mesh_group(qgis_layer, variable):
         """Set a mesh layer's active scalar dataset group by name or index."""
         from qgis.core import QgsMeshDatasetIndex
@@ -333,6 +354,16 @@ class Project:
             logger.error(f"Failed to load layer: {source}")
             return
 
+        # Before styling, so the stretch and statistics leave these pixels out.
+        # A datacube takes its override in the layer source instead (see
+        # `_datacube.source`), where the provider's own reader applies it.
+        if (
+            isinstance(layer, RasterLayer)
+            and not isinstance(layer, DatacubeLayer)
+            and layer.nodata is not None
+        ):
+            self._apply_nodata(qgis_layer, layer.nodata)
+
         layer_filter = getattr(layer, "filter", None)
         if isinstance(qgis_layer, QgsVectorLayer) and layer_filter:
             if not qgis_layer.setSubsetString(layer_filter):
@@ -406,7 +437,7 @@ class Project:
         `visible`, `crs`, `overwrite_existing`, `style`, ...) are forwarded
         to the layer constructor. A :class:`RasterLayer` is built automatically
         when a raster-specific keyword is given (a :class:`RasterStyle` style,
-        `slice`, `statistics_kwargs` or `provider`), and a
+        `slice`, `statistics_kwargs`, `nodata` or `provider`), and a
         :class:`DatacubeLayer` for `provider="datacube_viewer"` or a datacube
         keyword (`dataset`, `indices`, `ref`); otherwise a plain :class:`Layer`.
         """

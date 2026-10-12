@@ -51,6 +51,59 @@ def test_raster_layer_extent_after_add(qgis_app, sample_tif):
     project.exit()
 
 
+def test_raster_nodata_masks_value_in_statistics(qgis_app, sample_tif):
+    # Values are 0-99; masking 0 moves the minimum to 1.
+    project = Project()
+    layer = RasterLayer(file=str(sample_tif), nodata=0)
+    project.add_layer(layer)
+    assert layer.get_layer_min() == 1.0
+    project.exit()
+
+
+def test_raster_nodata_accepts_several_values(qgis_app, sample_tif):
+    project = Project()
+    layer = RasterLayer(file=str(sample_tif), nodata=[0, 1, 99])
+    project.add_layer(layer)
+    assert layer.get_layer_min() == 2.0
+    assert layer.get_layer_max() == 98.0
+    project.exit()
+
+
+def test_raster_nodata_replaces_the_declared_value(qgis_app, tmp_path):
+    import numpy as np
+    from osgeo import gdal
+
+    path = str(tmp_path / "declared.tif")
+    ds = gdal.GetDriverByName("GTiff").Create(path, 10, 10, 1, gdal.GDT_Float32)
+    ds.SetGeoTransform([0.0, 1.0, 0.0, 10.0, 0.0, -1.0])
+    band = ds.GetRasterBand(1)
+    band.WriteArray(np.arange(100, dtype=np.float32).reshape(10, 10))
+    band.SetNoDataValue(0.0)
+    ds.FlushCache()
+    ds = None
+
+    def lowest(**kwargs):
+        from qgis.core import QgsProject
+
+        QgsProject.instance().clear()
+        project = Project()
+        layer = RasterLayer(file=path, **kwargs)
+        project.add_layer(layer)
+        value = layer.get_layer_min()
+        project.exit()
+        return value
+
+    assert lowest() == 1.0  # the file's own nodata
+    assert lowest(nodata=[]) == 0.0  # switched off
+    assert lowest(nodata=5) == 0.0  # replaced, so 0 shows again
+
+
+def test_add_layer_nodata_keyword_builds_raster_layer(qgis_app, sample_tif):
+    project = Project()
+    project.add_layer(str(sample_tif), nodata=0)
+    project.exit()
+
+
 def test_raster_style_bw_sets_gray_renderer(qgis_app, sample_tif):
     from qgis.core import QgsSingleBandGrayRenderer
     project = Project()

@@ -35,8 +35,11 @@ def _import(module: str):
         raise ImportError(f"{INSTALL_HINT} ({exc})") from exc
 
 
-def layer_uri(file, *, dataset="", ref=None, variable=None, indices=None):
+def layer_uri(file, *, dataset="", ref=None, variable=None, indices=None, nodata=None):
     """Parse the provider source for one store, dataset, variable and slice.
+
+    *nodata* replaces the store's own nodata value (one number or a list; an
+    empty list masks nothing); ``None`` follows the store.
 
     Returns a ``datacube_viewer.layeruri.LayerUri``; raises its ``UriError``
     (a ``ValueError``) on input the provider would reject.
@@ -54,6 +57,12 @@ def layer_uri(file, *, dataset="", ref=None, variable=None, indices=None):
     text = "&".join(
         f"{key}={quote(str(value), safe=':/')}" for key, value in fields.items() if value
     )
+    if nodata is not None:
+        # Unlike the fields above an empty value means something ("mask nothing"),
+        # so the key is written whenever an override is given.
+        values = [nodata] if isinstance(nodata, (int, float)) else list(nodata)
+        numbers = [str(int(v)) if float(v).is_integer() else repr(float(v)) for v in values]
+        text += "&nodata=" + quote(",".join(numbers), safe="")
     return decode_uri(text)
 
 
@@ -91,6 +100,7 @@ def source(layer) -> str:
         ref=layer.ref,
         variable=layer.variable,
         indices=layer.indices,
+        nodata=layer.nodata,
     )
     return uri.encode()
 

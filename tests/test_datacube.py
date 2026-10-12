@@ -108,6 +108,16 @@ def test_layer_uri_carries_every_field():
     assert uri.bands == ("temperature",)
     assert dict(uri.indices) == {"time": 2, "sensor": 1}
 
+@pytest.mark.parametrize(
+    "nodata, expected",
+    [(None, None), ([], ()), (-9999, (-9999.0,)), ([0, 1.5], (0.0, 1.5))],
+)
+def test_layer_uri_carries_the_nodata_override(nodata, expected):
+    pytest.importorskip("datacube_viewer.layeruri")
+    from qgis_project._datacube import layer_uri
+
+    assert layer_uri("cube.zarr", nodata=nodata).nodata == expected
+
 def test_layer_uri_follows_branch_main_by_default():
     pytest.importorskip("datacube_viewer.layeruri")
     from qgis_project._datacube import layer_uri
@@ -229,6 +239,14 @@ def test_raster_layer_with_provider_uri(datacube_project, datacube_nc):
     uri = f"url={datacube_nc.as_posix()}&bands=elevation"
     datacube_project.add_layer(RasterLayer(uri, name="dem", provider=DATACUBE_PROVIDER))
     assert _layers_by_name()["dem"].isValid()
+
+@pytest.mark.qgis
+def test_datacube_nodata_override_reaches_the_provider(datacube_project, datacube_nc):
+    datacube_project.add_datacube_layer(
+        str(datacube_nc), variable="elevation", nodata=[0, 1]
+    )
+    (qgis_layer,) = _layers_by_name().values()
+    assert "nodata=0%2C1" in qgis_layer.dataProvider().dataSourceUri()
 
 @pytest.mark.qgis
 def test_datacube_stretch_spans_the_whole_cube(datacube_project, datacube_nc):
