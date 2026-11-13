@@ -41,9 +41,9 @@ automatically:
 
 | | Approach | Pros | Cons | Use when… |
 |---|---|---|---|---|
-| **A** ✅ | Local QGIS desktop install, driven via subprocess | Tiny env, one QGIS install, no version conflicts | No live QGIS objects (e.g. no `snapshot()`) | You already have the QGIS desktop app |
-| **B** ✅ | `qgis` from conda-forge, in-process | Conventional, live QGIS objects | Large env (>1 GB), possibly duplicate QGIS installs | You work in notebooks / need live objects, or have no desktop QGIS |
-| **C** ⚠️ | Local QGIS desktop install, imported in-process | One install *and* live objects | Python version must match QGIS's exactly; fragile | Advanced cases only — prefer A or B |
+| **A**&nbsp;✅ | Local QGIS desktop install, driven via subprocess | Tiny env, one QGIS install, no version conflicts | No live QGIS objects (e.g. no `snapshot()`) | You already have the QGIS desktop app |
+| **B**&nbsp;✅ | `qgis` from conda-forge, in-process | Conventional, live QGIS objects | Large env (>1 GB), possibly duplicate QGIS installs | You work in notebooks / need live objects, or have no desktop QGIS |
+| **C**&nbsp;⚠️ | Local QGIS desktop install, imported in-process | One install *and* live objects | Python version must match QGIS's exactly; fragile | Advanced cases only — prefer A or B |
 
 The full rationale behind each approach, and how to force one with
 `QGIS_PROJECT_LAUNCH_MODE`, is in
