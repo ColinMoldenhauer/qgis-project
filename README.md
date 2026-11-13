@@ -41,7 +41,7 @@ automatically:
 
 | | Approach | Pros | Cons | Use when… |
 |---|---|---|---|---|
-| **A**&nbsp;✅ | Local QGIS desktop install, driven via subprocess | Tiny env, one QGIS install, no version conflicts | No live QGIS objects (e.g. no `snapshot()`) | You already have the QGIS desktop app |
+| **A**&nbsp;✅ | Local QGIS desktop install, driven via subprocess | Least overhead: installs into any venv/conda/uv env, one QGIS install, no version conflicts | No live QGIS objects (e.g. no `snapshot()`) | You already have the QGIS desktop app |
 | **B**&nbsp;✅ | `qgis` from conda-forge, in-process | Conventional, live QGIS objects | Large env (>1 GB), possibly duplicate QGIS installs | You work in notebooks / need live objects, or have no desktop QGIS |
 | **C**&nbsp;⚠️ | Local QGIS desktop install, imported in-process | One install *and* live objects | Python version must match QGIS's exactly; fragile | Advanced cases only — prefer A or B |
 
@@ -53,8 +53,9 @@ The full rationale behind each approach, and how to force one with
 <summary><b>Option A — drive a local QGIS install (recommended with the desktop app)</b></summary>
 
 The package **auto-discovers** your QGIS desktop install and runs your project
-through QGIS's own **bundled Python** in a child process. Install
-`qgis-project` into **any** Python environment (venv, conda, system) — the `qgis`
+through QGIS's own **bundled Python** in a child process. This is the option
+with the **least overhead**: install `qgis-project` into **any** Python
+environment you already have at hand (venv, conda, uv, system) — the `qgis`
 conda package is **not** required.
 
 ```bash
