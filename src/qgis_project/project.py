@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -37,6 +38,38 @@ from qgis_project.utils import (
 
 logger = logging.getLogger(__name__)
 
+#: Whether this process set ``QT_QPA_PLATFORM`` itself (see `_ensure_qt_platform`),
+#: so that what it launches with a GUI does not inherit the choice.
+_chose_offscreen = False
+
+
+def _ensure_qt_platform() -> bool:
+    """Run Qt offscreen when there is no display to run it on. Returns whether it did.
+
+    QGIS starts a Qt application even with the GUI disabled (a `Project` holds a
+    `QgsMapCanvas`), and on a machine without a display, such as over SSH, Qt's
+    default 'xcb' platform aborts the whole process. Building and saving a
+    project needs no display, so the offscreen platform does. A platform the
+    user set is kept; Windows and macOS always have one.
+    """
+    global _chose_offscreen
+    if os.environ.get("QT_QPA_PLATFORM") or sys.platform in ("win32", "darwin"):
+        return False
+    if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
+        return False
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    _chose_offscreen = True
+    logger.info("No display found: running Qt offscreen.")
+    return True
+
+
+def _gui_environment() -> dict[str, str]:
+    """The environment to launch QGIS's GUI with: ours, minus an offscreen we chose."""
+    env = os.environ.copy()
+    if _chose_offscreen:
+        env.pop("QT_QPA_PLATFORM", None)
+    return env
+
 
 class Project:
     def __init__(
@@ -50,6 +83,8 @@ class Project:
 
         existing = QgsApplication.instance()
         if existing is None:
+            # Before the application exists: Qt reads the platform when it starts.
+            _ensure_qt_platform()
             self._application = QgsApplication([], False)
             self._application.initQgis()
             self._owns_app = True
@@ -638,7 +673,7 @@ class Project:
                 "QGIS executable not found on PATH. "
                 "Make sure your QGIS conda environment is active."
             )
-        subprocess.Popen([qgis_bin, file])
+        subprocess.Popen([qgis_bin, file], env=_gui_environment())
         logger.info(f"Opened QGIS with project: {file}")
 
     def snapshot(self, path: str | None = None):

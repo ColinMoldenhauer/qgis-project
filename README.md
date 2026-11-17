@@ -127,6 +127,10 @@ proj.save("my_project.qgz")
 proj.exit()
 ```
 
+Building and saving a project needs no display, so this also runs over SSH or
+in CI: without a display, Qt runs offscreen unless `QT_QPA_PLATFORM` says
+otherwise.
+
 ### Layer groups
 
 ```python
