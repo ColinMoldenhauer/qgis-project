@@ -306,7 +306,27 @@ proj.add_layer("cube.nc", provider="datacube_viewer")    # the same, via add_lay
 `variable`, `dataset` (a group in the store), `indices` (the slice shown for
 each non-spatial dimension) and `ref` (an Icechunk version) are fields of
 `DatacubeLayer`; every `RasterLayer` option, styles included, works as well.
-`list_datacube_variables("cube.zarr")` lists the variables.
+`list_datacube_variables("cube.zarr")` lists the variables. An `indices` entry
+for a dimension the variable does not have, or past its end, is an error: the
+layer is not added, and the log says which dimensions there are.
+
+More fields choose how the provider reads the cube:
+
+```python
+proj.add_datacube_layer("s3://bucket/repo", pin_snapshot=True)  # freeze today's main
+proj.add_datacube_layer("cube.zarr", variable="land_cover", resampling="nearest")
+proj.add_datacube_layer("cube.zarr", level_name="2")            # always pyramid level 2
+proj.add_datacube_layer("scene.zarr", variable=["red", "green", "blue"],
+                        composite=True, style=RasterStyleMultiBandColor())
+```
+
+`pin_snapshot` fixes the layer to the snapshot `ref` points at when the project
+is built, so the project keeps showing that version as the branch moves on.
+`resampling` is `"average"` (default), `"nearest"` or `"bilinear"`;
+`level_strategy` is `"auto"` (default, by zoom), `"base"`, `"coarsest"` or
+`"manual"` with `level_name`. `composite` makes the variables the bands of one
+layer instead of one layer each. A layer `crs` replaces the CRS found in the
+store.
 
 Two installs are needed. Making the layers needs the `qgis-datacube-viewer`
 package in the Python that runs QGIS; in local mode that is the standalone

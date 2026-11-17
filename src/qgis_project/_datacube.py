@@ -15,6 +15,7 @@ shows something else.
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import logging
 from urllib.parse import quote
@@ -35,11 +36,25 @@ def _import(module: str):
         raise ImportError(f"{INSTALL_HINT} ({exc})") from exc
 
 
-def layer_uri(file, *, dataset="", ref=None, variable=None, indices=None, nodata=None):
+def layer_uri(
+    file,
+    *,
+    dataset="",
+    ref=None,
+    variable=None,
+    indices=None,
+    nodata=None,
+    crs=None,
+    resampling=None,
+    level_strategy=None,
+    level_name=None,
+):
     """Parse the provider source for one store, dataset, variable and slice.
 
     *nodata* replaces the store's own nodata value (one number or a list; an
-    empty list masks nothing); ``None`` follows the store.
+    empty list masks nothing); ``None`` follows the store. *crs* (an EPSG
+    integer or any string QGIS reads) replaces the store's CRS. A *level_name*
+    without a *level_strategy* means ``"manual"``.
 
     Returns a ``datacube_viewer.layeruri.LayerUri``; raises its ``UriError``
     (a ``ValueError``) on input the provider would reject.
@@ -47,12 +62,18 @@ def layer_uri(file, *, dataset="", ref=None, variable=None, indices=None, nodata
     decode_uri = _import("datacube_viewer.layeruri").decode_uri
     if variable is not None and not isinstance(variable, str):
         variable = ",".join(variable)
+    if level_name and not level_strategy:
+        level_strategy = "manual"
     fields = {
         "url": str(file),
         "dataset": dataset,
         "ref": ref,
         "bands": variable,
         "index": ",".join(f"{dim}={int(i)}" for dim, i in (indices or {}).items()),
+        "resampling": resampling,
+        "levels": level_strategy,
+        "level": level_name,
+        "crs": f"EPSG:{crs}" if isinstance(crs, int) else crs,
     }
     text = "&".join(
         f"{key}={quote(str(value), safe=':/')}" for key, value in fields.items() if value
@@ -101,8 +122,30 @@ def source(layer) -> str:
         variable=layer.variable,
         indices=layer.indices,
         nodata=layer.nodata,
+        crs=layer.crs,
+        resampling=layer.resampling,
+        level_strategy=layer.level_strategy,
+        level_name=layer.level_name,
     )
+    if layer.pin_snapshot:
+        uri = _pinned(uri)
     return uri.encode()
+
+
+def _pinned(uri):
+    """*uri* fixed to the snapshot its ref points at now.
+
+    The provider opens a pinned layer at its recorded snapshot, so this is
+    what makes a saved project keep showing what it showed when it was built.
+    Raises if the store cannot be opened; a store without versions has no
+    snapshot to pin, and is returned as it is.
+    """
+    core = _import("datacube_viewer.core")
+    handle = core.open_store(uri.store_uri, uri.effective_ref, kind=uri.kind)
+    if handle.snapshot_id is None:
+        logger.warning(f"{uri.store_uri} has no versions; pin_snapshot does nothing.")
+        return uri
+    return dataclasses.replace(uri, snapshot_id=handle.snapshot_id, pin_snapshot=True)
 
 
 def stretch_across_cube(qgis_layer) -> None:

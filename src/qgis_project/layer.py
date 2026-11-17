@@ -28,7 +28,16 @@ MESH_EXTENSIONS = (".2dm", ".slf", ".sww", ".mesh")
 DATACUBE_PROVIDER = "datacube_viewer"
 
 # `add_layer` keywords that only make sense for a `DatacubeLayer`.
-DATACUBE_KEYWORDS = ("dataset", "indices", "ref")
+DATACUBE_KEYWORDS = (
+    "dataset",
+    "indices",
+    "ref",
+    "pin_snapshot",
+    "resampling",
+    "level_strategy",
+    "level_name",
+    "composite",
+)
 
 
 def is_netcdf(file: str) -> bool:
@@ -274,7 +283,8 @@ class DatacubeLayer(RasterLayer):
     branches, tags and snapshots. Like a NetCDF file, a datacube is loaded as
     one single-band layer per variable, each stretched across the whole cube
     rather than one slice, so that stepping through time in the plugin's panel
-    keeps the colours comparable.
+    keeps the colours comparable. With `composite`, the variables instead become
+    the bands of one layer, e.g. the red, green and blue of an image.
 
     The package `qgis-datacube-viewer` must be installed in the Python that
     runs QGIS (here, or the standalone QGIS in subprocess mode), and the saved
@@ -287,23 +297,49 @@ class DatacubeLayer(RasterLayer):
         Store location: a Zarr or Icechunk directory, a NetCDF file, or a URL
         (`s3://`, `gs://`, `az://`, `https://`).
     variable : str or list of str or None
-        Variable(s) to load, one layer each. `None` (default) loads every
-        variable in the dataset.
+        Variable(s) to load, one layer each (or the bands of one layer, with
+        `composite`). `None` (default) loads every variable in the dataset.
     dataset : str
         Group inside the store that holds the variables, e.g. `"utm32"`.
         Empty (default) takes the first georeferenced dataset.
     indices : dict of str to int
         Slice shown for each non-spatial dimension, e.g. `{"time": 3}`.
-        Dimensions not listed show index 0.
+        Dimensions not listed show index 0. A dimension the variable does not
+        have, or an index outside it, is an error: the layer is not added.
     ref : str or None
         Icechunk version: `"branch:main"`, `"tag:v1"`, `"snapshot:<id>"`, or a
         bare branch name. `None` follows branch `main`. Ignored by plain Zarr
         and NetCDF.
+    pin_snapshot : bool
+        Icechunk only: fix the layer to the snapshot `ref` points at when the
+        project is built, so the saved project keeps showing exactly that,
+        however the branch moves on. False (default) follows `ref`.
+    resampling : str or None
+        How pixels are combined when zoomed out: `"average"` (the provider's
+        default), `"nearest"` (for categories) or `"bilinear"`.
+    level_strategy : str or None
+        Which pyramid level of a multiscale store to read: `"auto"` (default,
+        the one matching the zoom), `"base"` (always full resolution),
+        `"coarsest"`, or `"manual"` with `level_name`.
+    level_name : str or None
+        The pyramid level to always read, e.g. `"2"`; implies
+        `level_strategy="manual"`.
+    composite : bool
+        Make the variables the bands of one layer, in the order given, rather
+        than one layer each. Style it with `RasterStyleMultiBandColor`.
+    crs
+        As for every layer; for a datacube it also replaces the CRS found in
+        the store, which is what the provider reads the grid in.
     """
 
     dataset: str = ""
     indices: dict[str, int] = field(default_factory=dict)
     ref: str | None = None
+    pin_snapshot: bool = False
+    resampling: str | None = None
+    level_strategy: str | None = None
+    level_name: str | None = None
+    composite: bool = False
     provider: str | None = DATACUBE_PROVIDER
 
 
@@ -356,7 +392,7 @@ def layer_from_path(file: str, **kwargs) -> Layer:
     :class:`DatacubeLayer` from a file path and kwargs.
 
     Chooses :class:`DatacubeLayer` for `provider="datacube_viewer"` or a
-    datacube-specific keyword (`dataset`, `indices`, `ref`);
+    datacube-specific keyword (see `DATACUBE_KEYWORDS`);
     :class:`MeshLayer` for a mesh-specific keyword (a :class:`MeshStyle`
     style) or an unambiguous mesh extension; :class:`RasterLayer`
     for a raster-specific keyword (a :class:`RasterStyle` style, `slice`,

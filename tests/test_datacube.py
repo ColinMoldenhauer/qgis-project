@@ -45,7 +45,16 @@ def test_layer_from_path_netcdf_with_datacube_provider_is_a_datacube():
 
 @pytest.mark.parametrize(
     "keyword, value",
-    [("dataset", "utm32"), ("indices", {"time": 2}), ("ref", "tag:v1")],
+    [
+        ("dataset", "utm32"),
+        ("indices", {"time": 2}),
+        ("ref", "tag:v1"),
+        ("pin_snapshot", True),
+        ("resampling", "nearest"),
+        ("level_strategy", "base"),
+        ("level_name", "2"),
+        ("composite", True),
+    ],
 )
 def test_layer_from_path_datacube_keyword_builds_datacube_layer(keyword, value):
     layer = layer_from_path("cube.zarr", **{keyword: value})
@@ -70,6 +79,11 @@ def test_datacube_layer_json_round_trip():
         indices={"time": 2},
         ref="tag:v1",
         style=RasterStyleBW(vmin=0, vmax=10),
+        pin_snapshot=True,
+        resampling="nearest",
+        level_name="2",
+        composite=True,
+        crs=32633,
     )
     (restored,), _, _ = from_json(to_json([layer], "out.qgz"))
     assert restored == layer
@@ -107,6 +121,34 @@ def test_layer_uri_carries_every_field():
     assert uri.ref.label == "tag:v1"
     assert uri.bands == ("temperature",)
     assert dict(uri.indices) == {"time": 2, "sensor": 1}
+
+def test_layer_uri_carries_the_rendering_options():
+    pytest.importorskip("datacube_viewer.layeruri")
+    from qgis_project._datacube import layer_uri
+
+    uri = layer_uri(
+        "cube.zarr", resampling="nearest", level_strategy="coarsest", crs=32633
+    )
+    assert uri.resampling == "nearest"
+    assert uri.level_strategy == "coarsest"
+    assert uri.crs_override == "EPSG:32633"
+
+def test_a_level_name_alone_means_that_level():
+    pytest.importorskip("datacube_viewer.layeruri")
+    from qgis_project._datacube import layer_uri
+
+    uri = layer_uri("cube.zarr", level_name="2")
+    assert (uri.level_strategy, uri.level_name) == ("manual", "2")
+
+@pytest.mark.parametrize(
+    "option", [{"resampling": "cubic"}, {"level_strategy": "finest"}]
+)
+def test_layer_uri_refuses_an_unknown_rendering_option(option):
+    pytest.importorskip("datacube_viewer.layeruri")
+    from qgis_project._datacube import layer_uri
+
+    with pytest.raises(ValueError, match="Unknown"):
+        layer_uri("cube.zarr", **option)
 
 @pytest.mark.parametrize(
     "nodata, expected",
@@ -284,3 +326,51 @@ def test_saved_datacube_project_reopens(datacube_project, datacube_nc, tmp_path)
     assert len(layers) == 2
     assert all(layer.isValid() for layer in layers)
     assert {layer.providerType() for layer in layers} == {DATACUBE_PROVIDER}
+
+@pytest.mark.qgis
+def test_a_composite_is_one_layer_with_a_band_per_variable(datacube_project, datacube_nc):
+    datacube_project.add_datacube_layer(
+        str(datacube_nc), variable=["temperature", "elevation"], composite=True
+    )
+    (qgis_layer,) = _layers_by_name().values()
+    assert qgis_layer.isValid()
+    assert qgis_layer.name() == "cube.nc : temperature, elevation"
+    assert qgis_layer.bandCount() == 2
+    assert qgis_layer.dataProvider().context.uri.bands == ("temperature", "elevation")
+
+@pytest.mark.qgis
+def test_rendering_options_reach_the_provider(datacube_project, datacube_nc):
+    datacube_project.add_datacube_layer(
+        str(datacube_nc),
+        variable="temperature",
+        resampling="nearest",
+        level_strategy="base",
+        crs=32633,
+    )
+    (qgis_layer,) = _layers_by_name().values()
+    uri = qgis_layer.dataProvider().context.uri
+    assert (uri.resampling, uri.level_strategy, uri.crs_override) == (
+        "nearest",
+        "base",
+        "EPSG:32633",
+    )
+
+@pytest.mark.qgis
+def test_pinning_a_store_without_versions_still_adds_it(datacube_project, datacube_nc, caplog):
+    datacube_project.add_datacube_layer(
+        str(datacube_nc), variable="temperature", pin_snapshot=True
+    )
+    assert len(_layers_by_name()) == 1
+    assert "no versions" in caplog.text
+
+@pytest.mark.qgis
+@pytest.mark.parametrize("indices", [{"tiem": 1}, {"time": 3}])
+def test_a_slice_the_cube_does_not_have_adds_nothing(
+    datacube_project, datacube_nc, indices, caplog
+):
+    """A typo must not quietly show the first slice."""
+    datacube_project.add_datacube_layer(
+        str(datacube_nc), variable="temperature", indices=indices
+    )
+    assert _layers_by_name() == {}
+    assert "could not open" in caplog.text

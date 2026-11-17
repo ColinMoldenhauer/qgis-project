@@ -175,8 +175,10 @@ proj.add_datacube_layer("s3://bucket/repo", ref="tag:v1", dataset="utm32")
 
 The Python that runs QGIS needs the `qgis-datacube-viewer` package to make the
 layers, and the QGIS that opens the project needs the plugin to show them.
-`list_datacube_variables(file)` lists the variables. Other raster providers are
-chosen with `RasterLayer(source, provider="<key>")`.
+`list_datacube_variables(file)` lists the variables. `DatacubeLayer` also
+takes `pin_snapshot`, `resampling`, `level_strategy`/`level_name` and
+`composite` (the variables as the bands of one layer). Other raster providers
+are chosen with `RasterLayer(source, provider="<key>")`.
 
 ### Vector styles
 

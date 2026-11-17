@@ -124,7 +124,8 @@ class Project:
         return children
 
     def _resolve_datacube(self, layer: DatacubeLayer) -> list[DatacubeLayer]:
-        """Expand a datacube layer into one concrete layer per variable.
+        """Expand a datacube layer into one concrete layer per variable, or into
+        one layer of all of them with `composite`.
 
         Named and grouped like NetCDF variables (see `netcdf_name_and_group`).
         A single named variable is passed through without opening the store;
@@ -153,6 +154,13 @@ class Project:
 
         # A store is often a directory, given with a trailing slash.
         store = str(layer.file).rstrip("/\\")
+        if layer.composite:
+            if not requested:
+                return []
+            name, group = netcdf_name_and_group(
+                store, ", ".join(requested), layer.group, layer.name, False
+            )
+            return [dataclasses.replace(layer, variable=list(requested), name=name, group=group)]
         multiple = len(requested) > 1
         children = []
         for token in requested:
